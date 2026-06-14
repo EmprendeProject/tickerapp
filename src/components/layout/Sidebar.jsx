@@ -8,6 +8,7 @@ import { Avatar, AvatarFallback } from '@/components/ui/avatar'
 import { Button } from '@/components/ui/button'
 import { Separator } from '@/components/ui/separator'
 import { cn } from '@/lib/cn'
+import logo from '@/assets/logo.png'
 import toast from 'react-hot-toast'
 
 const navItems = [
@@ -33,9 +34,7 @@ export default function Sidebar() {
     <aside className="fixed top-0 left-0 h-screen w-64 border-r bg-card flex flex-col z-50">
       {/* Logo */}
       <div className="flex items-center gap-3 px-6 py-5 border-b">
-        <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-primary">
-          <Ticket className="h-4 w-4 text-primary-foreground" />
-        </div>
+        <img src={logo} alt="TickerApp" className="h-8 w-auto object-contain" />
         <span className="text-lg font-bold tracking-tight">TickerApp</span>
       </div>
 

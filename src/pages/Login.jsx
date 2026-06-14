@@ -6,6 +6,7 @@ import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { useAuth } from '@/contexts/AuthContext'
+import logo from '@/assets/logo.png'
 import toast from 'react-hot-toast'
 
 export default function Login() {
@@ -37,9 +38,7 @@ export default function Login() {
       <div className="relative z-10 w-full max-w-sm animate-fade-in">
         {/* Logo */}
         <div className="flex flex-col items-center mb-8">
-          <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-primary mb-4">
-            <Ticket className="h-6 w-6 text-primary-foreground" />
-          </div>
+          <img src={logo} alt="TickerApp" className="h-16 w-auto mb-4 object-contain" />
           <h1 className="text-2xl font-bold">TickerApp</h1>
           <p className="text-sm text-muted-foreground mt-1">Gestión de eventos y tickets</p>
         </div>

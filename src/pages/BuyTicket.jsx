@@ -16,6 +16,7 @@ import { es } from 'date-fns/locale'
 import toast from 'react-hot-toast'
 import jsPDF from 'jspdf'
 import html2canvas from 'html2canvas'
+import logo from '@/assets/logo.png'
 
 export default function BuyTicket() {
   const { eventId } = useParams()
@@ -109,7 +110,7 @@ export default function BuyTicket() {
       <div className="border-b bg-card">
         <div className="max-w-2xl mx-auto px-4 py-4 flex items-center justify-between">
           <div className="flex items-center gap-2">
-            <Ticket className="h-5 w-5" />
+            <img src={logo} alt="TickerApp" className="h-5 w-auto object-contain" />
             <span className="font-bold">TickerApp</span>
           </div>
           <Badge variant="outline">Compra segura</Badge>
