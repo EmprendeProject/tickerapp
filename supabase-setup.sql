@@ -1,13 +1,47 @@
 -- ============================================================
--- TicketShow — Supabase SQL Setup
+-- TicketShow — Supabase SQL Setup & Migraciones
 -- Ejecutar en: Supabase Dashboard > SQL Editor
 -- ============================================================
+
+-- MIGRACIÓN PARA INTEGRAR CORREOS RESEND (Si ya creaste la BD antes):
+-- Copia y ejecuta este bloque en el SQL Editor de tu Supabase Dashboard:
+/*
+  -- 1. Agregar columna de email al perfil de organizadores si no existe
+  ALTER TABLE organizer_profiles ADD COLUMN IF NOT EXISTS email TEXT;
+
+  -- 2. Actualizar registros existentes con el email de auth.users
+  UPDATE organizer_profiles
+  SET email = users.email
+  FROM auth.users users
+  WHERE organizer_profiles.id = users.id;
+
+  -- 3. Modificar la función trigger para incluir el email en nuevos registros
+  CREATE OR REPLACE FUNCTION handle_new_user()
+  RETURNS TRIGGER AS $$
+  BEGIN
+    INSERT INTO organizer_profiles (id, full_name, org_name, email)
+    VALUES (
+      NEW.id,
+      NEW.raw_user_meta_data->>'full_name',
+      NEW.raw_user_meta_data->>'org_name',
+      NEW.email
+    );
+    RETURN NEW;
+  END;
+  $$ LANGUAGE plpgsql SECURITY DEFINER;
+
+  -- 4. Permitir lectura pública de perfiles de organizadores para enviar correos
+  CREATE POLICY "Public can read organizer profiles" ON organizer_profiles
+    FOR SELECT USING (TRUE);
+*/
+
 
 -- 1. Organizer Profiles (extends auth.users)
 CREATE TABLE IF NOT EXISTS organizer_profiles (
   id              UUID PRIMARY KEY REFERENCES auth.users(id) ON DELETE CASCADE,
   full_name       TEXT,
   org_name        TEXT,
+  email           TEXT, -- Agregado para notificaciones por correo
   phone           TEXT,
   payment_phone   TEXT,
   payment_bank    TEXT,
@@ -72,6 +106,9 @@ ALTER TABLE orders              ENABLE ROW LEVEL SECURITY;
 CREATE POLICY "Users can manage own profile" ON organizer_profiles
   FOR ALL USING (auth.uid() = id);
 
+CREATE POLICY "Public can read organizer profiles" ON organizer_profiles
+  FOR SELECT USING (TRUE);
+
 -- events: organizer can manage, anyone can read
 CREATE POLICY "Organizers manage own events" ON events
   FOR ALL USING (auth.uid() = organizer_id);
@@ -120,11 +157,12 @@ $$ LANGUAGE plpgsql SECURITY DEFINER;
 CREATE OR REPLACE FUNCTION handle_new_user()
 RETURNS TRIGGER AS $$
 BEGIN
-  INSERT INTO organizer_profiles (id, full_name, org_name)
+  INSERT INTO organizer_profiles (id, full_name, org_name, email)
   VALUES (
     NEW.id,
     NEW.raw_user_meta_data->>'full_name',
-    NEW.raw_user_meta_data->>'org_name'
+    NEW.raw_user_meta_data->>'org_name',
+    NEW.email
   );
   RETURN NEW;
 END;

@@ -16,6 +16,7 @@ import { es } from 'date-fns/locale'
 import toast from 'react-hot-toast'
 import jsPDF from 'jspdf'
 import html2canvas from 'html2canvas'
+import { buildOrganizerNotificationEmail } from '@/lib/emailTemplates'
 
 export default function BuyTicket() {
   const { eventId } = useParams()
@@ -29,6 +30,7 @@ export default function BuyTicket() {
 
   // cart: { [ticketTypeId]: quantity }
   const [cart, setCart] = useState({})
+  const [organizerEmail, setOrganizerEmail] = useState('')
 
   const [form, setForm] = useState({ buyer_name: '', buyer_email: '', buyer_phone: '' })
   const [proofFile, setProofFile] = useState(null)
@@ -42,6 +44,18 @@ export default function BuyTicket() {
     const { data: tt } = await supabase.from('ticket_types').select('*').eq('event_id', eventId)
     setEvent(ev)
     setTicketTypes(tt || [])
+    
+    if (ev) {
+      const { data: profile } = await supabase
+        .from('organizer_profiles')
+        .select('email')
+        .eq('id', ev.organizer_id)
+        .single()
+      if (profile?.email) {
+        setOrganizerEmail(profile.email)
+      }
+    }
+
     // init cart with 0 for each type
     const initialCart = {}
     ;(tt || []).forEach(t => { initialCart[t.id] = 0 })
@@ -115,6 +129,30 @@ export default function BuyTicket() {
       setOrders(createdOrders)
       setStep(3)
       toast.success(`¡${totalTickets} entrada${totalTickets > 1 ? 's' : ''} registrada${totalTickets > 1 ? 's' : ''}! Pendiente de aprobación.`)
+
+      // Enviar notificación al organizador por correo electrónico (no bloqueante)
+      if (organizerEmail) {
+        try {
+          const emailHtml = buildOrganizerNotificationEmail({
+            event: event,
+            buyerName: form.buyer_name,
+            totalTickets: totalTickets,
+            totalAmount: totalAmount,
+            currency: currency
+          })
+          
+          await supabase.functions.invoke('send-ticket-email', {
+            body: {
+              email: organizerEmail,
+              subject: `🎫 Nueva compra registrada - ${event.name}`,
+              html: emailHtml,
+              text: `Hola, tienes una nueva compra de ${totalTickets} entradas para el evento ${event.name} por un monto de ${totalAmount} ${currency}. Ingresa al dashboard para verificar el pago.`
+            }
+          })
+        } catch (emailErr) {
+          console.error('Error al enviar correo de notificación al organizador:', emailErr)
+        }
+      }
     } catch (err) {
       toast.error(err.message || 'Error al procesar la compra')
     } finally {

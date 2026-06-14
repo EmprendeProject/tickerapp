@@ -12,6 +12,7 @@ import { formatCurrency, getStatusLabel } from '@/lib/utils'
 import { format } from 'date-fns'
 import { es } from 'date-fns/locale'
 import toast from 'react-hot-toast'
+import { buildTicketApprovalEmail } from '@/lib/emailTemplates'
 
 export default function OrderVerification() {
   const { user } = useAuth()
@@ -32,7 +33,7 @@ export default function OrderVerification() {
     if (eventIds.length === 0) { setAllOrders([]); setOrders([]); setLoading(false); return }
     const { data } = await supabase
       .from('orders')
-      .select(`*, events(name, date), ticket_types(name, price, currency)`)
+      .select(`*, events(name, date, location), ticket_types(name, price, currency)`)
       .in('event_id', eventIds)
       .order('created_at', { ascending: false })
     setAllOrders(data || [])
@@ -49,6 +50,32 @@ export default function OrderVerification() {
     const { error } = await supabase.from('orders').update({ status }).eq('id', orderId)
     if (!error && status === 'approved') {
       await supabase.rpc('increment_sold', { ticket_type_id: ticketTypeId })
+      
+      // Enviar correo de confirmación con el ticket QR al comprador (no bloqueante)
+      try {
+        const orderObj = allOrders.find(o => o.id === orderId)
+        if (orderObj) {
+          const emailHtml = buildTicketApprovalEmail({
+            event: {
+              name: orderObj.events?.name,
+              date: orderObj.events?.date,
+              location: orderObj.events?.location
+            },
+            order: orderObj
+          })
+          
+          await supabase.functions.invoke('send-ticket-email', {
+            body: {
+              email: orderObj.buyer_email,
+              subject: `✅ Entrada aprobada - ${orderObj.events?.name}`,
+              html: emailHtml,
+              text: `¡Hola ${orderObj.buyer_name}! Tu pago fue aprobado. Tu código QR es: ${orderObj.qr_code}. Preséntalo en la entrada del evento.`
+            }
+          })
+        }
+      } catch (emailErr) {
+        console.error('Error al enviar correo de confirmación al comprador:', emailErr)
+      }
     }
     if (error) toast.error('Error al actualizar el estado')
     else toast.success(status === 'approved' ? '✅ Pago aprobado' : '❌ Pago rechazado')
