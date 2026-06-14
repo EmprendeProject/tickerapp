@@ -11,6 +11,7 @@ import EventDetail from './pages/EventDetail'
 import OrderVerification from './pages/OrderVerification'
 import BuyTicket from './pages/BuyTicket'
 import Settings from './pages/Settings'
+import Scanner from './pages/Scanner'
 import './index.css'
 
 // Apply dark class to root element for shadcn/ui dark mode
@@ -53,6 +54,7 @@ function AppRoutes() {
         <Route path="/eventos/crear" element={<EventCreate />} />
         <Route path="/eventos/:id"   element={<EventDetail />} />
         <Route path="/ordenes"       element={<OrderVerification />} />
+        <Route path="/scanner"       element={<Scanner />} />
         <Route path="/configuracion" element={<Settings />} />
       </Route>
     </Routes>

@@ -1,7 +1,7 @@
 import { NavLink, useNavigate } from 'react-router-dom'
 import {
   LayoutDashboard, Calendar, CheckSquare,
-  Settings, LogOut, Ticket
+  Settings, LogOut, Ticket, ScanLine
 } from 'lucide-react'
 import { useAuth } from '@/contexts/AuthContext'
 import { Avatar, AvatarFallback } from '@/components/ui/avatar'
@@ -15,6 +15,7 @@ const navItems = [
   { label: 'Dashboard',       to: '/dashboard', icon: LayoutDashboard },
   { label: 'Mis Eventos',     to: '/eventos',   icon: Calendar },
   { label: 'Verificar Pagos', to: '/ordenes',   icon: CheckSquare },
+  { label: 'Escáner QR',     to: '/scanner',   icon: ScanLine },
 ]
 
 export default function Sidebar() {

@@ -10,7 +10,7 @@ import { Badge } from '@/components/ui/badge'
 import { Separator } from '@/components/ui/separator'
 import { Progress } from '@/components/ui/progress'
 import { supabase } from '@/lib/supabase'
-import { formatCurrency, generateQRToken } from '@/lib/utils'
+import { formatCurrency, generateQRToken, buildQRUrl } from '@/lib/utils'
 import { format } from 'date-fns'
 import { es } from 'date-fns/locale'
 import toast from 'react-hot-toast'
@@ -491,7 +491,7 @@ export default function BuyTicket() {
                     </div>
                     <div className="text-center shrink-0 space-y-2">
                       <div className="bg-white inline-flex p-2 rounded-lg">
-                        <QRCodeSVG value={order.qr_code} size={100} bgColor="#ffffff" fgColor="#000000" level="M" />
+                        <QRCodeSVG value={buildQRUrl(order.qr_code)} size={100} bgColor="#ffffff" fgColor="#000000" level="M" />
                       </div>
                       <p className="font-mono text-[9px] text-muted-foreground">{order.qr_code}</p>
                       <Badge variant="warning" className="text-[9px]">⚠️ Pendiente de aprobación</Badge>

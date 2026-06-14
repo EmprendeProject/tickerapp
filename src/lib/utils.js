@@ -1,8 +1,13 @@
+// Base URL for the app — reads from env or falls back to the Vercel domain
+const APP_BASE_URL = import.meta.env.VITE_APP_URL || 'https://tickerapp.vercel.app'
+
 export const generateQRToken = () => {
   // Generate a unique token for the ticket QR
   const randomPart = Math.random().toString(36).substring(2, 11).toUpperCase()
   return `TKR-${Date.now()}-${randomPart}`
 }
+
+export const buildQRUrl = (token) => `${APP_BASE_URL}/scanner?qr=${token}`
 
 export const formatCurrency = (amount, currency = 'USD') => {
   if (currency === 'USD') {

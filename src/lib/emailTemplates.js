@@ -24,8 +24,12 @@ export function buildTicketApprovalEmail({ event, order }) {
     minute: '2-digit'
   })
 
-  // Generamos el URL del QR usando el servicio gratuito qrserver.com
-  const qrUrl = `https://api.qrserver.com/v1/create-qr-code/?size=250x250&margin=10&data=${encodeURIComponent(order.qr_code)}`
+  const APP_BASE_URL = typeof window !== 'undefined'
+    ? window.location.origin
+    : 'https://ticketshow.app'
+  // Encode the full scanner URL so any camera opens the check-in page directly
+  const qrData = `${APP_BASE_URL}/scanner?qr=${order.qr_code}`
+  const qrUrl = `https://api.qrserver.com/v1/create-qr-code/?size=250x250&margin=10&data=${encodeURIComponent(qrData)}`
 
   return `
     <!DOCTYPE html>
