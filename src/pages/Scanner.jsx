@@ -275,8 +275,8 @@ export default function Scanner() {
 
       {/* Scanner area */}
       <div className="rounded-2xl border bg-card overflow-hidden">
-        {/* Camera viewport */}
-        <div className="relative bg-black" style={{ minHeight: 320 }}>
+        {/* Camera viewport (hidden when showing results) */}
+        <div className={scannerState === 'result' ? 'hidden' : 'relative bg-black'} style={{ minHeight: 320 }}>
           {/* html5-qrcode mounts here */}
           <div id={SCANNER_ID} className="w-full" />
 

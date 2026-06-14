@@ -37,6 +37,16 @@ export default function Events() {
   const deleteEvent = async (id) => {
     if (!confirm('¿Eliminar este evento? Esta acción no se puede deshacer.')) return
     setDeleting(id)
+
+    const eventToDelete = events.find(e => e.id === id)
+    if (eventToDelete?.banner_url?.includes('supabase.co') && eventToDelete.banner_url.includes('event-banners')) {
+      const parts = eventToDelete.banner_url.split('/')
+      const fileName = parts[parts.length - 1]
+      if (fileName) {
+        try { await supabase.storage.from('event-banners').remove([fileName]) } catch (e) { console.error('Error deleting banner', e) }
+      }
+    }
+
     await supabase.from('orders').delete().eq('event_id', id)
     await supabase.from('ticket_types').delete().eq('event_id', id)
     await supabase.from('events').delete().eq('id', id)
@@ -55,7 +65,7 @@ export default function Events() {
   const getRevenue = e => (e.ticket_types || []).reduce((s, t) => s + ((t.sold || 0) * (t.price || 0)), 0)
 
   return (
-    <div className="p-8 space-y-6 animate-fade-in">
+    <div className="p-4 md:p-8 space-y-6 animate-fade-in">
       <div className="flex items-center justify-between">
         <div>
           <h1 className="text-2xl font-bold">Mis Eventos</h1>

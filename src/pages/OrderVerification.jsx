@@ -92,14 +92,14 @@ export default function OrderVerification() {
   const statusIcon = s => s === 'approved' ? <CheckCircle className="h-3.5 w-3.5" /> : s === 'rejected' ? <XCircle className="h-3.5 w-3.5" /> : <AlertCircle className="h-3.5 w-3.5" />
 
   return (
-    <div className="p-8 space-y-6 animate-fade-in">
+    <div className="p-4 md:p-8 space-y-6 animate-fade-in">
       <div>
         <h1 className="text-2xl font-bold">Verificar Pagos</h1>
         <p className="text-sm text-muted-foreground">Revisa y aprueba los comprobantes de Pago Móvil</p>
       </div>
 
       {/* Stats */}
-      <div className="grid grid-cols-3 gap-4">
+      <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
         <Card>
           <CardContent className="pt-6">
             <div className="text-2xl font-bold text-yellow-500">{counts.pending}</div>
@@ -145,7 +145,8 @@ export default function OrderVerification() {
                   </p>
                 </div>
               ) : (
-                <Table>
+                <div className="overflow-x-auto">
+                  <Table>
                   <TableHeader>
                     <TableRow>
                       <TableHead>Comprador</TableHead>
@@ -201,6 +202,7 @@ export default function OrderVerification() {
                     ))}
                   </TableBody>
                 </Table>
+                </div>
               )}
             </CardContent>
           </Card>

@@ -26,7 +26,7 @@ export default function EventCreate() {
   const [step, setStep] = useState(0)
 
   const [event, setEvent] = useState({
-    name: '', description: '', date: '', location: '', banner_url: '',
+    name: '', description: '', date: '', location: '', banner_url: '', banner_file: null,
     payment_phone: '', payment_bank: '', payment_ci: '',
   })
 
@@ -50,11 +50,43 @@ export default function EventCreate() {
     return true
   }
 
+  const handleFileChange = (e) => {
+    const file = e.target.files?.[0]
+    if (file) {
+      if (file.size > 5 * 1024 * 1024) {
+        toast.error('La imagen no debe superar los 5MB')
+        return
+      }
+      setEvent(ev => ({ ...ev, banner_file: file, banner_url: URL.createObjectURL(file) }))
+    }
+  }
+
   const handleSubmit = async (e) => {
     e.preventDefault()
     if (!validate()) return
     setLoading(true)
-    const { data: createdEvent, error: eventErr } = await supabase.from('events').insert({ ...event, organizer_id: user.id }).select().single()
+
+    let finalBannerUrl = event.banner_url
+    if (event.banner_file) {
+      const fileExt = event.banner_file.name.split('.').pop()
+      const fileName = `${user.id}-${Date.now()}.${fileExt}`
+      const { data: uploadData, error: uploadErr } = await supabase.storage
+        .from('event-banners')
+        .upload(fileName, event.banner_file)
+      
+      if (uploadErr) {
+        toast.error('Error al subir el banner')
+        setLoading(false)
+        return
+      }
+      const { data: publicUrlData } = supabase.storage.from('event-banners').getPublicUrl(fileName)
+      finalBannerUrl = publicUrlData.publicUrl
+    }
+
+    const { banner_file, ...eventData } = event
+    eventData.banner_url = finalBannerUrl
+
+    const { data: createdEvent, error: eventErr } = await supabase.from('events').insert({ ...eventData, organizer_id: user.id }).select().single()
     if (eventErr) { toast.error('Error al crear el evento'); setLoading(false); return }
     const ttInsert = ticketTypes.map(t => ({ event_id: createdEvent.id, name: t.name, price: parseFloat(t.price), quantity: parseInt(t.quantity), currency: t.currency, sold: 0 }))
     const { error: ttErr } = await supabase.from('ticket_types').insert(ttInsert)
@@ -64,7 +96,7 @@ export default function EventCreate() {
   }
 
   return (
-    <div className="p-8 space-y-6 animate-fade-in">
+    <div className="p-4 md:p-8 space-y-6 animate-fade-in">
       <div>
         <h1 className="text-2xl font-bold">Crear Evento</h1>
         <p className="text-sm text-muted-foreground">Configura tu evento en {STEPS.length} pasos</p>
@@ -114,7 +146,7 @@ export default function EventCreate() {
                   <Label htmlFor="ev-desc">Descripción</Label>
                   <Textarea id="ev-desc" placeholder="Describe tu evento..." value={event.description} onChange={setField('description')} rows={3} />
                 </div>
-                <div className="grid grid-cols-2 gap-4">
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                   <div className="space-y-2">
                     <Label htmlFor="ev-date">Fecha y hora *</Label>
                     <Input id="ev-date" type="datetime-local" value={event.date} onChange={setField('date')} required />
@@ -125,9 +157,15 @@ export default function EventCreate() {
                   </div>
                 </div>
                 <div className="space-y-2">
-                  <Label htmlFor="ev-banner">URL del banner (opcional)</Label>
-                  <Input id="ev-banner" type="url" placeholder="https://..." value={event.banner_url} onChange={setField('banner_url')} />
-                  <p className="text-xs text-muted-foreground">Usa un link de imagen pública (Imgur, etc.)</p>
+                  <Label htmlFor="ev-banner">Banner del Evento (opcional)</Label>
+                  <Input id="ev-banner" type="file" accept="image/*" onChange={handleFileChange} />
+                  {event.banner_url && (
+                    <div className="mt-2 relative w-full h-32 rounded-lg overflow-hidden border">
+                      <img src={event.banner_url} alt="Preview" className="w-full h-full object-cover" />
+                      <div className="absolute top-2 right-2 bg-black/50 text-white text-xs px-2 py-1 rounded">Vista previa</div>
+                    </div>
+                  )}
+                  <p className="text-xs text-muted-foreground">Sube una imagen horizontal (JPG, PNG) máx 5MB.</p>
                 </div>
                 <div className="flex justify-end pt-2">
                   <Button type="button" onClick={() => setStep(1)}>Siguiente: Tickets →</Button>
@@ -155,7 +193,7 @@ export default function EventCreate() {
                           </Button>
                         )}
                       </div>
-                      <div className="grid grid-cols-2 gap-3">
+                      <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
                         <div className="space-y-1.5">
                           <Label>Nombre *</Label>
                           <Input placeholder="VIP, General, Estudiante..." value={tt.name} onChange={setTicketInput(i, 'name')} required />
@@ -208,7 +246,7 @@ export default function EventCreate() {
                     <Label htmlFor="pay-phone">Teléfono de Pago Móvil *</Label>
                     <Input id="pay-phone" type="tel" placeholder="0412-1234567" value={event.payment_phone} onChange={setField('payment_phone')} required />
                   </div>
-                  <div className="grid grid-cols-2 gap-4">
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                     <div className="space-y-2">
                       <Label>Banco *</Label>
                       <Select value={event.payment_bank} onValueChange={setSelectField('payment_bank')} required>
@@ -229,7 +267,7 @@ export default function EventCreate() {
                   {/* Summary */}
                   <div className="space-y-2">
                     <p className="text-sm font-medium">Resumen</p>
-                    <div className="grid grid-cols-2 gap-2 text-sm">
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 text-sm">
                       <span className="text-muted-foreground">Evento:</span>
                       <span className="font-medium">{event.name || '—'}</span>
                       <span className="text-muted-foreground">Tipos de ticket:</span>

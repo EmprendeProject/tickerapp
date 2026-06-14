@@ -18,7 +18,7 @@ const navItems = [
   { label: 'Escáner QR',     to: '/scanner',   icon: ScanLine },
 ]
 
-export default function Sidebar() {
+export default function Sidebar({ isOpen, onClose }) {
   const { user, profile, signOut } = useAuth()
   const navigate = useNavigate()
 
@@ -32,7 +32,19 @@ export default function Sidebar() {
   const displayName = profile?.full_name || user?.email?.split('@')[0] || 'Usuario'
 
   return (
-    <aside className="fixed top-0 left-0 h-screen w-64 border-r bg-card flex flex-col z-50">
+    <>
+      {/* Mobile Backdrop */}
+      {isOpen && (
+        <div 
+          className="fixed inset-0 z-40 bg-black/80 backdrop-blur-sm md:hidden animate-fade-in"
+          onClick={onClose}
+        />
+      )}
+
+      <aside className={cn(
+        "fixed top-0 left-0 h-screen w-64 border-r bg-card flex flex-col z-50 transform transition-transform duration-200 ease-in-out md:translate-x-0",
+        isOpen ? "translate-x-0" : "-translate-x-full"
+      )}>
       {/* Logo */}
       <div className="flex items-center gap-3 px-6 py-5 border-b">
         <img src={logo} alt="TicketShow" className="h-8 w-auto object-contain" />
@@ -48,6 +60,7 @@ export default function Sidebar() {
           <NavLink
             key={to}
             to={to}
+            onClick={onClose}
             className={({ isActive }) =>
               cn(
                 "flex items-center gap-3 rounded-md px-3 py-2 text-sm font-medium transition-colors",
@@ -68,6 +81,7 @@ export default function Sidebar() {
           </p>
           <NavLink
             to="/configuracion"
+            onClick={onClose}
             className={({ isActive }) =>
               cn(
                 "flex items-center gap-3 rounded-md px-3 py-2 text-sm font-medium transition-colors",
@@ -107,5 +121,6 @@ export default function Sidebar() {
         </div>
       </div>
     </aside>
+    </>
   )
 }

@@ -80,22 +80,22 @@ export default function Dashboard() {
   ]
 
   if (loading) return (
-    <div className="p-8">
-      <div className="grid grid-cols-4 gap-4 mb-6">
+    <div className="p-4 md:p-8">
+      <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6">
         {[1,2,3,4].map(i => <div key={i} className="skeleton h-28 rounded-xl" />)}
       </div>
     </div>
   )
 
   return (
-    <div className="p-8 space-y-6 animate-fade-in">
+    <div className="p-4 md:p-8 space-y-6 animate-fade-in">
       <div>
         <h1 className="text-2xl font-bold">Dashboard</h1>
         <p className="text-sm text-muted-foreground">Resumen de tus eventos y ventas</p>
       </div>
 
       {/* Metric cards */}
-      <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
         {metricCards.map(({ label, value, icon: Icon, to }) => {
           const card = (
             <Card className="hover:border-border/80 transition-colors">
@@ -180,7 +180,8 @@ export default function Dashboard() {
               <p className="text-sm text-muted-foreground">Cuando alguien compre un ticket aparecerá aquí</p>
             </div>
           ) : (
-            <Table>
+            <div className="overflow-x-auto">
+              <Table>
               <TableHeader>
                 <TableRow>
                   <TableHead>Comprador</TableHead>
@@ -211,6 +212,7 @@ export default function Dashboard() {
                 ))}
               </TableBody>
             </Table>
+            </div>
           )}
         </CardContent>
       </Card>

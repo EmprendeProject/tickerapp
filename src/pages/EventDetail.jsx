@@ -46,12 +46,12 @@ export default function EventDetail() {
   }
 
   if (loading) return (
-    <div className="p-8 space-y-4">
+    <div className="p-4 md:p-8 space-y-4">
       <div className="skeleton h-48 rounded-xl" />
-      <div className="grid grid-cols-4 gap-4">{[1,2,3,4].map(i => <div key={i} className="skeleton h-24 rounded-xl" />)}</div>
+      <div className="grid grid-cols-2 md:grid-cols-4 gap-4">{[1,2,3,4].map(i => <div key={i} className="skeleton h-24 rounded-xl" />)}</div>
     </div>
   )
-  if (!event) return <div className="p-8"><Card className="py-16 text-center"><p>Evento no encontrado</p></Card></div>
+  if (!event) return <div className="p-4 md:p-8"><Card className="py-16 text-center"><p>Evento no encontrado</p></Card></div>
 
   const approved = orders.filter(o => o.status === 'approved')
   const pending  = orders.filter(o => o.status === 'pending')
@@ -71,19 +71,19 @@ export default function EventDetail() {
     : <AlertCircle className="h-3.5 w-3.5" />
 
   return (
-    <div className="p-8 space-y-6 animate-fade-in">
+    <div className="p-4 md:p-8 space-y-6 animate-fade-in">
       {/* Header banner */}
       <div
-        className="rounded-xl p-8 relative overflow-hidden border"
+        className="rounded-xl p-6 md:p-8 relative overflow-hidden border"
         style={event.banner_url ? {
           background: `linear-gradient(rgba(0,0,0,0.65), rgba(0,0,0,0.85)), url(${event.banner_url}) center/cover`
         } : undefined}
       >
-        <div className="flex items-start justify-between mb-4">
+        <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between mb-4 gap-4">
           <Link to="/eventos" className="text-sm text-muted-foreground hover:text-foreground transition-colors">← Mis Eventos</Link>
-          <div className="flex gap-2">
-            <Button variant="outline" size="sm" onClick={copyLink}><Copy className="h-3.5 w-3.5" /> Copiar link</Button>
-            <Button size="sm" asChild><a href={`/evento/${id}/comprar`} target="_blank" rel="noreferrer"><ExternalLink className="h-3.5 w-3.5" /> Ver página</a></Button>
+          <div className="flex gap-2 w-full sm:w-auto">
+            <Button variant="outline" size="sm" onClick={copyLink} className="flex-1 sm:flex-none"><Copy className="h-3.5 w-3.5 mr-1" /> Copiar</Button>
+            <Button size="sm" asChild className="flex-1 sm:flex-none"><a href={`/evento/${id}/comprar`} target="_blank" rel="noreferrer"><ExternalLink className="h-3.5 w-3.5 mr-1" /> Ver</a></Button>
           </div>
         </div>
         <h1 className="text-3xl font-bold mb-3">{event.name}</h1>
@@ -95,7 +95,7 @@ export default function EventDetail() {
       </div>
 
       {/* Metrics */}
-      <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
         {[
           { label: 'Órdenes totales', value: orders.length },
           { label: 'Aprobadas', value: approved.length, color: 'text-green-500' },
@@ -153,7 +153,8 @@ export default function EventDetail() {
                   <p className="text-sm text-muted-foreground">Comparte el link de venta para recibir tu primera compra</p>
                 </div>
               ) : (
-                <Table>
+                <div className="overflow-x-auto">
+                  <Table>
                   <TableHeader>
                     <TableRow>
                       <TableHead>Comprador</TableHead><TableHead>Ticket</TableHead><TableHead>Monto</TableHead>
@@ -184,6 +185,7 @@ export default function EventDetail() {
                     ))}
                   </TableBody>
                 </Table>
+                </div>
               )}
             </CardContent>
           </Card>

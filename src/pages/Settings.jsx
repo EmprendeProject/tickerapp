@@ -33,7 +33,7 @@ export default function Settings() {
   }
 
   return (
-    <div className="p-8 space-y-6 animate-fade-in max-w-2xl">
+    <div className="p-4 md:p-8 space-y-6 animate-fade-in max-w-2xl">
       <div>
         <h1 className="text-2xl font-bold">Configuración</h1>
         <p className="text-sm text-muted-foreground">Gestiona tu perfil y preferencias</p>
@@ -46,7 +46,7 @@ export default function Settings() {
           <CardDescription>Tu nombre y datos de contacto</CardDescription>
         </CardHeader>
         <CardContent className="space-y-4">
-          <div className="grid grid-cols-2 gap-4">
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <div className="space-y-2">
               <Label>Nombre completo</Label>
               <Input placeholder="Juan Pérez" value={form.full_name} onChange={set('full_name')} />
@@ -79,7 +79,7 @@ export default function Settings() {
             <Label>Teléfono de Pago Móvil</Label>
             <Input type="tel" placeholder="0412-1234567" value={form.payment_phone} onChange={set('payment_phone')} />
           </div>
-          <div className="grid grid-cols-2 gap-4">
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <div className="space-y-2">
               <Label>Banco</Label>
               <Select value={form.payment_bank} onValueChange={setSelect('payment_bank')}>

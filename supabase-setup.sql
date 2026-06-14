@@ -189,3 +189,19 @@ CREATE POLICY "Anyone can upload proofs" ON storage.objects
 
 CREATE POLICY "Proofs are publicly readable" ON storage.objects
   FOR SELECT USING (bucket_id = 'payment-proofs');
+
+-- ============================================================
+-- Storage bucket for event banners
+-- ============================================================
+INSERT INTO storage.buckets (id, name, public) VALUES ('event-banners', 'event-banners', true)
+ON CONFLICT (id) DO NOTHING;
+
+CREATE POLICY "Anyone can read event banners" ON storage.objects
+  FOR SELECT USING (bucket_id = 'event-banners');
+
+CREATE POLICY "Authenticated users can upload banners" ON storage.objects
+  FOR INSERT WITH CHECK (bucket_id = 'event-banners' AND auth.role() = 'authenticated');
+
+CREATE POLICY "Authenticated users can delete banners" ON storage.objects
+  FOR DELETE USING (bucket_id = 'event-banners' AND auth.role() = 'authenticated');
+
