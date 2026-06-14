@@ -1,9 +1,14 @@
 import { useState, useEffect } from 'react'
-import { CheckCircle, XCircle, AlertCircle, Eye, Image } from 'lucide-react'
-import { QRCodeSVG } from 'qrcode.react'
-import { supabase } from '../lib/supabase'
-import { useAuth } from '../contexts/AuthContext'
-import { formatCurrency, getStatusLabel, formatDate } from '../lib/utils'
+import { CheckCircle, XCircle, AlertCircle, Image as ImageIcon } from 'lucide-react'
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
+import { Button } from '@/components/ui/button'
+import { Badge } from '@/components/ui/badge'
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table'
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog'
+import { supabase } from '@/lib/supabase'
+import { useAuth } from '@/contexts/AuthContext'
+import { formatCurrency, getStatusLabel } from '@/lib/utils'
 import { format } from 'date-fns'
 import { es } from 'date-fns/locale'
 import toast from 'react-hot-toast'
@@ -11,220 +16,179 @@ import toast from 'react-hot-toast'
 export default function OrderVerification() {
   const { user } = useAuth()
   const [orders, setOrders] = useState([])
+  const [allOrders, setAllOrders] = useState([])
   const [loading, setLoading] = useState(true)
-  const [statusFilter, setStatusFilter] = useState('pending')
-  const [selectedOrder, setSelectedOrder] = useState(null)
+  const [activeTab, setActiveTab] = useState('pending')
   const [processing, setProcessing] = useState(null)
-  const [showProof, setShowProof] = useState(null)
+  const [proofUrl, setProofUrl] = useState(null)
 
-  useEffect(() => { loadOrders() }, [user, statusFilter])
+  useEffect(() => { loadOrders() }, [user])
 
   const loadOrders = async () => {
     if (!user) return
     setLoading(true)
-
-    const { data: events } = await supabase
-      .from('events')
-      .select('id')
-      .eq('organizer_id', user.id)
-
+    const { data: events } = await supabase.from('events').select('id').eq('organizer_id', user.id)
     const eventIds = events?.map(e => e.id) || []
-    if (eventIds.length === 0) { setOrders([]); setLoading(false); return }
-
-    const query = supabase
+    if (eventIds.length === 0) { setAllOrders([]); setOrders([]); setLoading(false); return }
+    const { data } = await supabase
       .from('orders')
       .select(`*, events(name, date), ticket_types(name, price, currency)`)
       .in('event_id', eventIds)
       .order('created_at', { ascending: false })
-
-    if (statusFilter !== 'all') {
-      query.eq('status', statusFilter)
-    }
-
-    const { data } = await query
-    setOrders(data || [])
+    setAllOrders(data || [])
     setLoading(false)
   }
 
+  useEffect(() => {
+    if (activeTab === 'all') setOrders(allOrders)
+    else setOrders(allOrders.filter(o => o.status === activeTab))
+  }, [activeTab, allOrders])
+
   const updateStatus = async (orderId, status, ticketTypeId) => {
     setProcessing(orderId)
-    const { error } = await supabase
-      .from('orders')
-      .update({ status })
-      .eq('id', orderId)
-
+    const { error } = await supabase.from('orders').update({ status }).eq('id', orderId)
     if (!error && status === 'approved') {
-      // Increment sold count
       await supabase.rpc('increment_sold', { ticket_type_id: ticketTypeId })
-      // In production: trigger email via Supabase Edge Function
     }
-
-    if (error) {
-      toast.error('Error al actualizar el estado')
-    } else {
-      toast.success(status === 'approved' ? '✅ Pago aprobado — el comprador recibirá su QR' : '❌ Pago rechazado')
-      loadOrders()
-      setSelectedOrder(null)
-    }
+    if (error) toast.error('Error al actualizar el estado')
+    else toast.success(status === 'approved' ? '✅ Pago aprobado' : '❌ Pago rechazado')
+    loadOrders()
     setProcessing(null)
   }
 
-  const statusCounts = {
-    pending: orders.filter(o => o.status === 'pending').length,
-    approved: orders.filter(o => o.status === 'approved').length,
-    rejected: orders.filter(o => o.status === 'rejected').length,
+  const counts = {
+    pending:  allOrders.filter(o => o.status === 'pending').length,
+    approved: allOrders.filter(o => o.status === 'approved').length,
+    rejected: allOrders.filter(o => o.status === 'rejected').length,
   }
 
-  const filters = [
-    { key: 'pending',  label: '⏳ Pendientes' },
-    { key: 'approved', label: '✅ Aprobados' },
-    { key: 'rejected', label: '❌ Rechazados' },
-    { key: 'all',      label: 'Todos' },
-  ]
+  const statusIcon = s => s === 'approved' ? <CheckCircle className="h-3.5 w-3.5" /> : s === 'rejected' ? <XCircle className="h-3.5 w-3.5" /> : <AlertCircle className="h-3.5 w-3.5" />
 
   return (
-    <div className="page-wrapper animate-fade-in">
-      <div className="page-header">
-        <h1 className="page-title">Verificar Pagos</h1>
-        <p className="page-subtitle">Revisa y aprueba los comprobantes de Pago Móvil</p>
+    <div className="p-8 space-y-6 animate-fade-in">
+      <div>
+        <h1 className="text-2xl font-bold">Verificar Pagos</h1>
+        <p className="text-sm text-muted-foreground">Revisa y aprueba los comprobantes de Pago Móvil</p>
       </div>
 
-      {/* Quick stats */}
-      <div className="grid-3 mb-8">
-        <div className="metric-card" style={{ borderColor: 'rgba(245,158,11,0.3)' }}>
-          <div className="metric-value" style={{ color: 'var(--color-warning)' }}>{statusCounts.pending}</div>
-          <div className="metric-label">Pendientes de revisión</div>
-        </div>
-        <div className="metric-card" style={{ borderColor: 'rgba(16,185,129,0.3)' }}>
-          <div className="metric-value" style={{ color: 'var(--color-success)' }}>{statusCounts.approved}</div>
-          <div className="metric-label">Aprobados</div>
-        </div>
-        <div className="metric-card" style={{ borderColor: 'rgba(239,68,68,0.3)' }}>
-          <div className="metric-value" style={{ color: 'var(--color-danger)' }}>{statusCounts.rejected}</div>
-          <div className="metric-label">Rechazados</div>
-        </div>
+      {/* Stats */}
+      <div className="grid grid-cols-3 gap-4">
+        <Card>
+          <CardContent className="pt-6">
+            <div className="text-2xl font-bold text-yellow-500">{counts.pending}</div>
+            <div className="text-sm text-muted-foreground mt-1">Pendientes</div>
+          </CardContent>
+        </Card>
+        <Card>
+          <CardContent className="pt-6">
+            <div className="text-2xl font-bold text-green-500">{counts.approved}</div>
+            <div className="text-sm text-muted-foreground mt-1">Aprobados</div>
+          </CardContent>
+        </Card>
+        <Card>
+          <CardContent className="pt-6">
+            <div className="text-2xl font-bold text-red-500">{counts.rejected}</div>
+            <div className="text-sm text-muted-foreground mt-1">Rechazados</div>
+          </CardContent>
+        </Card>
       </div>
 
-      {/* Filters */}
-      <div className="tabs mb-0">
-        {filters.map(f => (
-          <button key={f.key} className={`tab-btn${statusFilter === f.key ? ' active' : ''}`} onClick={() => setStatusFilter(f.key)}>
-            {f.label}
-          </button>
-        ))}
-      </div>
+      {/* Tabs */}
+      <Tabs value={activeTab} onValueChange={setActiveTab}>
+        <TabsList>
+          <TabsTrigger value="pending">⏳ Pendientes ({counts.pending})</TabsTrigger>
+          <TabsTrigger value="approved">✅ Aprobados</TabsTrigger>
+          <TabsTrigger value="rejected">❌ Rechazados</TabsTrigger>
+          <TabsTrigger value="all">Todos</TabsTrigger>
+        </TabsList>
 
-      {/* Orders list */}
-      <div className="card mt-0" style={{ borderTopLeftRadius: 0, borderTopRightRadius: 0, borderTop: 'none' }}>
-        {loading ? (
-          <div style={{ padding: 40, textAlign: 'center' }}>
-            <div className="btn-spinner" style={{ width: 36, height: 36, borderWidth: 3, margin: '0 auto' }} />
-          </div>
-        ) : orders.length === 0 ? (
-          <div className="empty-state">
-            <CheckCircle className="empty-state-icon" color="var(--color-success)" />
-            <p className="empty-state-title">Sin órdenes {statusFilter !== 'all' ? getStatusLabel(statusFilter).toLowerCase() + 's' : ''}</p>
-            <p className="empty-state-desc">
-              {statusFilter === 'pending' ? '¡Estás al día! No hay pagos pendientes de revisar.' : 'No hay órdenes en esta categoría.'}
-            </p>
-          </div>
-        ) : (
-          <div className="table-wrapper">
-            <table className="table">
-              <thead>
-                <tr>
-                  <th>Comprador</th>
-                  <th>Evento</th>
-                  <th>Ticket</th>
-                  <th>Monto</th>
-                  <th>Fecha</th>
-                  <th>Comprobante</th>
-                  <th>Acciones</th>
-                </tr>
-              </thead>
-              <tbody>
-                {orders.map(order => (
-                  <tr key={order.id}>
-                    <td>
-                      <div style={{ fontWeight: 600 }}>{order.buyer_name}</div>
-                      <div style={{ fontSize: '0.78rem', color: 'var(--color-text-muted)' }}>{order.buyer_email}</div>
-                      {order.buyer_phone && (
-                        <div style={{ fontSize: '0.78rem', color: 'var(--color-text-subtle)' }}>{order.buyer_phone}</div>
-                      )}
-                    </td>
-                    <td>
-                      <div style={{ fontWeight: 600, fontSize: '0.88rem' }}>{order.events?.name}</div>
-                      <div style={{ fontSize: '0.77rem', color: 'var(--color-text-muted)' }}>
-                        {order.events?.date && format(new Date(order.events.date), 'dd/MM/yyyy', { locale: es })}
-                      </div>
-                    </td>
-                    <td>{order.ticket_types?.name}</td>
-                    <td style={{ fontWeight: 700, color: 'var(--color-success)' }}>
-                      {formatCurrency(order.total_amount, order.ticket_types?.currency)}
-                    </td>
-                    <td style={{ color: 'var(--color-text-muted)', fontSize: '0.82rem' }}>
-                      {format(new Date(order.created_at), 'dd/MM/yy HH:mm')}
-                    </td>
-                    <td>
-                      {order.payment_proof_url ? (
-                        <button
-                          className="btn btn-secondary btn-sm"
-                          onClick={() => setShowProof(order.payment_proof_url)}
-                        >
-                          <Image size={13} /> Ver
-                        </button>
-                      ) : <span className="text-subtle text-xs">Sin comprobante</span>}
-                    </td>
-                    <td>
-                      {order.status === 'pending' ? (
-                        <div className="flex gap-2">
-                          <button
-                            className="btn btn-success btn-sm"
-                            disabled={processing === order.id}
-                            onClick={() => updateStatus(order.id, 'approved', order.ticket_type_id)}
-                          >
-                            {processing === order.id ? <div className="btn-spinner" style={{ borderTopColor: 'var(--color-success)' }} /> : <CheckCircle size={13} />}
-                            Aprobar
-                          </button>
-                          <button
-                            className="btn btn-danger btn-sm"
-                            disabled={processing === order.id}
-                            onClick={() => updateStatus(order.id, 'rejected', order.ticket_type_id)}
-                          >
-                            <XCircle size={13} />
-                          </button>
-                        </div>
-                      ) : (
-                        <span className={`badge badge-${order.status}`}>
-                          {order.status === 'approved' ? <CheckCircle size={12} /> : <XCircle size={12} />}
-                          {getStatusLabel(order.status)}
-                        </span>
-                      )}
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-        )}
-      </div>
+        <TabsContent value={activeTab} className="mt-4">
+          <Card>
+            <CardContent className="p-0">
+              {loading ? (
+                <div className="flex justify-center py-16">
+                  <div className="h-8 w-8 border-2 border-border border-t-foreground rounded-full animate-spin" />
+                </div>
+              ) : orders.length === 0 ? (
+                <div className="flex flex-col items-center py-16 text-center">
+                  <CheckCircle className="h-12 w-12 text-green-500/40 mb-3" />
+                  <p className="font-medium">Sin órdenes</p>
+                  <p className="text-sm text-muted-foreground">
+                    {activeTab === 'pending' ? '¡Estás al día! No hay pagos pendientes.' : 'No hay órdenes en esta categoría.'}
+                  </p>
+                </div>
+              ) : (
+                <Table>
+                  <TableHeader>
+                    <TableRow>
+                      <TableHead>Comprador</TableHead>
+                      <TableHead>Evento</TableHead>
+                      <TableHead>Ticket</TableHead>
+                      <TableHead>Monto</TableHead>
+                      <TableHead>Fecha</TableHead>
+                      <TableHead>Comprobante</TableHead>
+                      <TableHead>Acciones</TableHead>
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    {orders.map(order => (
+                      <TableRow key={order.id}>
+                        <TableCell>
+                          <div className="font-medium text-sm">{order.buyer_name}</div>
+                          <div className="text-xs text-muted-foreground">{order.buyer_email}</div>
+                          {order.buyer_phone && <div className="text-xs text-muted-foreground">{order.buyer_phone}</div>}
+                        </TableCell>
+                        <TableCell>
+                          <div className="font-medium text-sm">{order.events?.name}</div>
+                          <div className="text-xs text-muted-foreground">
+                            {order.events?.date && format(new Date(order.events.date), 'dd/MM/yyyy', { locale: es })}
+                          </div>
+                        </TableCell>
+                        <TableCell className="text-sm">{order.ticket_types?.name}</TableCell>
+                        <TableCell className="font-semibold text-green-500 text-sm">{formatCurrency(order.total_amount)}</TableCell>
+                        <TableCell className="text-xs text-muted-foreground">{format(new Date(order.created_at), 'dd/MM/yy HH:mm')}</TableCell>
+                        <TableCell>
+                          {order.payment_proof_url
+                            ? <Button variant="outline" size="sm" onClick={() => setProofUrl(order.payment_proof_url)}><ImageIcon className="h-3.5 w-3.5" /> Ver</Button>
+                            : <span className="text-xs text-muted-foreground">Sin comprobante</span>}
+                        </TableCell>
+                        <TableCell>
+                          {order.status === 'pending' ? (
+                            <div className="flex gap-2">
+                              <Button size="sm" variant="success" disabled={processing === order.id} onClick={() => updateStatus(order.id, 'approved', order.ticket_type_id)}>
+                                {processing === order.id
+                                  ? <div className="h-3 w-3 border border-white/30 border-t-white rounded-full animate-spin" />
+                                  : <><CheckCircle className="h-3.5 w-3.5" /> Aprobar</>}
+                              </Button>
+                              <Button size="sm" variant="destructive" disabled={processing === order.id} onClick={() => updateStatus(order.id, 'rejected', order.ticket_type_id)}>
+                                <XCircle className="h-3.5 w-3.5" />
+                              </Button>
+                            </div>
+                          ) : (
+                            <Badge variant={order.status} className="gap-1">
+                              {statusIcon(order.status)} {getStatusLabel(order.status)}
+                            </Badge>
+                          )}
+                        </TableCell>
+                      </TableRow>
+                    ))}
+                  </TableBody>
+                </Table>
+              )}
+            </CardContent>
+          </Card>
+        </TabsContent>
+      </Tabs>
 
-      {/* Proof image modal */}
-      {showProof && (
-        <div className="modal-overlay" onClick={() => setShowProof(null)}>
-          <div className="modal" style={{ maxWidth: 700 }} onClick={e => e.stopPropagation()}>
-            <div className="modal-header">
-              <h3 className="modal-title">Comprobante de Pago</h3>
-              <button className="modal-close" onClick={() => setShowProof(null)}>✕</button>
-            </div>
-            <img
-              src={showProof}
-              alt="Comprobante"
-              style={{ width: '100%', borderRadius: 'var(--radius-md)', maxHeight: '70vh', objectFit: 'contain' }}
-            />
-          </div>
-        </div>
-      )}
+      {/* Proof Dialog */}
+      <Dialog open={!!proofUrl} onOpenChange={() => setProofUrl(null)}>
+        <DialogContent className="max-w-2xl">
+          <DialogHeader>
+            <DialogTitle>Comprobante de Pago</DialogTitle>
+          </DialogHeader>
+          {proofUrl && <img src={proofUrl} alt="Comprobante" className="w-full rounded-lg max-h-[70vh] object-contain" />}
+        </DialogContent>
+      </Dialog>
     </div>
   )
 }

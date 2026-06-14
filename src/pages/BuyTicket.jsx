@@ -1,9 +1,16 @@
 import { useState, useEffect, useRef } from 'react'
 import { useParams } from 'react-router-dom'
-import { Ticket, Calendar, MapPin, User, Mail, Phone, CreditCard, Upload, CheckCircle, Download } from 'lucide-react'
+import { Ticket, Calendar, MapPin, Upload, Download, CreditCard } from 'lucide-react'
 import { QRCodeSVG } from 'qrcode.react'
-import { supabase } from '../lib/supabase'
-import { formatCurrency, generateQRToken } from '../lib/utils'
+import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card'
+import { Button } from '@/components/ui/button'
+import { Input } from '@/components/ui/input'
+import { Label } from '@/components/ui/label'
+import { Badge } from '@/components/ui/badge'
+import { Separator } from '@/components/ui/separator'
+import { Progress } from '@/components/ui/progress'
+import { supabase } from '@/lib/supabase'
+import { formatCurrency, generateQRToken } from '@/lib/utils'
 import { format } from 'date-fns'
 import { es } from 'date-fns/locale'
 import toast from 'react-hot-toast'
@@ -15,9 +22,8 @@ export default function BuyTicket() {
   const [event, setEvent] = useState(null)
   const [ticketTypes, setTicketTypes] = useState([])
   const [loading, setLoading] = useState(true)
-  const [step, setStep] = useState(0) // 0=select, 1=form, 2=payment, 3=done
+  const [step, setStep] = useState(0)
   const [selectedType, setSelectedType] = useState(null)
-  const [uploading, setUploading] = useState(false)
   const [submitting, setSubmitting] = useState(false)
   const [order, setOrder] = useState(null)
   const ticketRef = useRef(null)
@@ -30,25 +36,15 @@ export default function BuyTicket() {
 
   const loadEvent = async () => {
     setLoading(true)
-    const { data: ev } = await supabase
-      .from('events')
-      .select('*')
-      .eq('id', eventId)
-      .single()
-
-    const { data: tt } = await supabase
-      .from('ticket_types')
-      .select('*')
-      .eq('event_id', eventId)
-
-    setEvent(ev)
-    setTicketTypes(tt || [])
+    const { data: ev } = await supabase.from('events').select('*').eq('id', eventId).single()
+    const { data: tt } = await supabase.from('ticket_types').select('*').eq('event_id', eventId)
+    setEvent(ev); setTicketTypes(tt || [])
     setLoading(false)
   }
 
-  const setField = (f) => (e) => setForm(v => ({ ...v, [f]: e.target.value }))
+  const setField = f => e => setForm(v => ({ ...v, [f]: e.target.value }))
 
-  const handleFileChange = (e) => {
+  const handleFileChange = e => {
     const file = e.target.files[0]
     if (!file) return
     setProofFile(file)
@@ -56,53 +52,23 @@ export default function BuyTicket() {
   }
 
   const handleSubmitOrder = async () => {
-    if (!form.buyer_name || !form.buyer_email) {
-      toast.error('Nombre y correo son obligatorios')
-      return
-    }
-    if (!proofFile) {
-      toast.error('Debes subir el comprobante de pago')
-      return
-    }
-
+    if (!form.buyer_name || !form.buyer_email) { toast.error('Nombre y correo son obligatorios'); return }
+    if (!proofFile) { toast.error('Debes subir el comprobante de pago'); return }
     setSubmitting(true)
     try {
-      // Upload proof
       const ext = proofFile.name.split('.').pop()
       const fileName = `proof-${Date.now()}.${ext}`
-      const { data: uploadData, error: uploadErr } = await supabase.storage
-        .from('payment-proofs')
-        .upload(fileName, proofFile)
-
+      const { error: uploadErr } = await supabase.storage.from('payment-proofs').upload(fileName, proofFile)
       if (uploadErr) throw new Error('Error al subir el comprobante')
-
-      const { data: { publicUrl } } = supabase.storage
-        .from('payment-proofs')
-        .getPublicUrl(fileName)
-
+      const { data: { publicUrl } } = supabase.storage.from('payment-proofs').getPublicUrl(fileName)
       const qrToken = generateQRToken()
-      const total = selectedType.price * 1
-
-      // Create order
-      const { data: newOrder, error: orderErr } = await supabase
-        .from('orders')
-        .insert({
-          event_id: eventId,
-          ticket_type_id: selectedType.id,
-          buyer_name: form.buyer_name,
-          buyer_email: form.buyer_email,
-          buyer_phone: form.buyer_phone,
-          quantity: 1,
-          total_amount: total,
-          status: 'pending',
-          payment_proof_url: publicUrl,
-          qr_code: qrToken,
-        })
-        .select()
-        .single()
-
+      const { data: newOrder, error: orderErr } = await supabase.from('orders').insert({
+        event_id: eventId, ticket_type_id: selectedType.id,
+        buyer_name: form.buyer_name, buyer_email: form.buyer_email, buyer_phone: form.buyer_phone,
+        quantity: 1, total_amount: selectedType.price,
+        status: 'pending', payment_proof_url: publicUrl, qr_code: qrToken,
+      }).select().single()
       if (orderErr) throw new Error('Error al registrar la orden')
-
       setOrder({ ...newOrder, event, ticket_types: selectedType })
       setStep(3)
       toast.success('¡Compra registrada! El organizador revisará tu pago.')
@@ -115,67 +81,87 @@ export default function BuyTicket() {
 
   const downloadTicket = async () => {
     if (!ticketRef.current) return
-    const canvas = await html2canvas(ticketRef.current, { scale: 2, backgroundColor: '#111827' })
+    const canvas = await html2canvas(ticketRef.current, { scale: 2, backgroundColor: '#09090b' })
     const pdf = new jsPDF({ orientation: 'portrait', unit: 'mm', format: [100, 150] })
-    const imgData = canvas.toDataURL('image/png')
-    pdf.addImage(imgData, 'PNG', 0, 0, 100, 150)
+    pdf.addImage(canvas.toDataURL('image/png'), 'PNG', 0, 0, 100, 150)
     pdf.save(`entrada-${order?.qr_code || 'ticket'}.pdf`)
   }
 
   if (loading) return (
-    <div style={{ minHeight: '100vh', background: 'var(--color-bg)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-      <div className="btn-spinner" style={{ width: 40, height: 40, borderWidth: 3 }} />
+    <div className="min-h-screen bg-background flex items-center justify-center">
+      <div className="h-10 w-10 border-2 border-border border-t-foreground rounded-full animate-spin" />
+    </div>
+  )
+  if (!event) return (
+    <div className="min-h-screen bg-background flex items-center justify-center p-4">
+      <Card className="max-w-sm w-full text-center p-8">
+        <div className="text-4xl mb-4">🎫</div>
+        <h2 className="font-bold text-lg">Evento no encontrado</h2>
+      </Card>
     </div>
   )
 
-  if (!event) return (
-    <div style={{ minHeight: '100vh', background: 'var(--color-bg)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-      <div className="card text-center" style={{ maxWidth: 400 }}>
-        <p style={{ fontSize: '2rem' }}>🎫</p>
-        <h2 style={{ fontWeight: 700 }}>Evento no encontrado</h2>
-      </div>
-    </div>
-  )
+  const STEPS = ['Seleccionar', 'Tus datos', 'Pago', 'Confirmación']
 
   return (
-    <div style={{ minHeight: '100vh', background: 'var(--gradient-hero)', padding: '40px 16px' }}>
-      <div style={{ maxWidth: 600, margin: '0 auto' }}>
-
-        {/* Event header */}
-        <div className="card mb-6" style={{
-          background: event.banner_url
-            ? `linear-gradient(rgba(8,12,24,0.75), rgba(8,12,24,0.97)), url(${event.banner_url}) center/cover`
-            : 'var(--color-bg-card)',
-          textAlign: 'center',
-        }}>
-          <div style={{ fontSize: '2.5rem', marginBottom: 8 }}>🎪</div>
-          <h1 style={{ fontSize: '1.8rem', fontWeight: 800, marginBottom: 8 }}>{event.name}</h1>
-          <div className="flex items-center justify-center gap-4" style={{ flexWrap: 'wrap' }}>
-            <div className="event-meta-item" style={{ justifyContent: 'center' }}>
-              <Calendar size={14} />
-              {format(new Date(event.date), "EEEE dd 'de' MMMM yyyy", { locale: es })}
-            </div>
-            {event.location && (
-              <div className="event-meta-item" style={{ justifyContent: 'center' }}>
-                <MapPin size={14} /> {event.location}
-              </div>
-            )}
+    <div className="min-h-screen bg-background">
+      {/* Header */}
+      <div className="border-b bg-card">
+        <div className="max-w-2xl mx-auto px-4 py-4 flex items-center justify-between">
+          <div className="flex items-center gap-2">
+            <Ticket className="h-5 w-5" />
+            <span className="font-bold">TickerApp</span>
           </div>
-          {event.description && (
-            <p style={{ marginTop: 12, color: 'var(--color-text-muted)', fontSize: '0.9rem' }}>{event.description}</p>
-          )}
+          <Badge variant="outline">Compra segura</Badge>
         </div>
+      </div>
 
-        {/* Branded logo */}
-        <div className="text-center mb-4" style={{ color: 'var(--color-text-subtle)', fontSize: '0.78rem' }}>
-          Powered by <span style={{ color: 'var(--color-primary-light)', fontWeight: 600 }}>TickerApp</span>
-        </div>
+      <div className="max-w-2xl mx-auto px-4 py-8 space-y-6">
 
-        {/* STEP 0: Select ticket */}
+        {/* Event info */}
+        <Card>
+          <CardContent className="p-6">
+            <div className="flex gap-4">
+              {event.banner_url && (
+                <img src={event.banner_url} alt={event.name} className="w-20 h-20 rounded-lg object-cover shrink-0" />
+              )}
+              <div>
+                <h1 className="text-xl font-bold mb-2">{event.name}</h1>
+                <div className="space-y-1">
+                  <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                    <Calendar className="h-4 w-4" />
+                    {format(new Date(event.date), "EEEE dd 'de' MMMM yyyy, HH:mm", { locale: es })}
+                  </div>
+                  {event.location && (
+                    <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                      <MapPin className="h-4 w-4" /> {event.location}
+                    </div>
+                  )}
+                </div>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+
+        {/* Progress bar */}
+        {step < 3 && (
+          <div className="space-y-2">
+            <div className="flex justify-between text-xs text-muted-foreground">
+              {STEPS.slice(0,3).map((s, i) => (
+                <span key={i} className={i === step ? 'text-foreground font-medium' : ''}>{s}</span>
+              ))}
+            </div>
+            <Progress value={((step) / 2) * 100} className="h-1" />
+          </div>
+        )}
+
+        {/* STEP 0: Select */}
         {step === 0 && (
-          <div className="card animate-slide-up">
-            <h2 style={{ fontWeight: 700, marginBottom: 20, fontSize: '1.2rem' }}>Selecciona tu entrada</h2>
-            <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+          <Card className="animate-fade-in">
+            <CardHeader>
+              <CardTitle>Selecciona tu entrada</CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-3">
               {ticketTypes.map(tt => {
                 const available = tt.quantity - (tt.sold || 0)
                 const isSoldOut = available <= 0
@@ -185,225 +171,201 @@ export default function BuyTicket() {
                     type="button"
                     disabled={isSoldOut}
                     onClick={() => { setSelectedType(tt); setStep(1) }}
-                    style={{
-                      display: 'flex',
-                      justifyContent: 'space-between',
-                      alignItems: 'center',
-                      padding: '16px 20px',
-                      borderRadius: 'var(--radius-lg)',
-                      background: selectedType?.id === tt.id ? 'rgba(124,58,237,0.15)' : 'var(--color-bg-secondary)',
-                      border: `1px solid ${selectedType?.id === tt.id ? 'rgba(124,58,237,0.5)' : 'var(--color-border)'}`,
-                      cursor: isSoldOut ? 'not-allowed' : 'pointer',
-                      opacity: isSoldOut ? 0.5 : 1,
-                      transition: 'all var(--transition-fast)',
-                      textAlign: 'left',
-                    }}
+                    className={`w-full flex items-center justify-between p-4 rounded-lg border text-left transition-colors ${
+                      isSoldOut ? 'opacity-50 cursor-not-allowed bg-muted/30' : 'hover:border-foreground/40 hover:bg-muted/50 cursor-pointer'
+                    }`}
                   >
                     <div>
-                      <div style={{ fontWeight: 700, fontSize: '1rem', color: 'var(--color-text)' }}>{tt.name}</div>
-                      <div style={{ fontSize: '0.8rem', color: 'var(--color-text-muted)', marginTop: 2 }}>
+                      <div className="font-semibold">{tt.name}</div>
+                      <div className="text-xs text-muted-foreground mt-0.5">
                         {isSoldOut ? '🚫 Agotado' : `${available} disponibles`}
                       </div>
                     </div>
-                    <div style={{ fontWeight: 800, fontSize: '1.3rem', color: isSoldOut ? 'var(--color-text-subtle)' : 'var(--color-success)' }}>
+                    <div className="text-xl font-bold text-green-500">
                       {formatCurrency(tt.price, tt.currency)}
                     </div>
                   </button>
                 )
               })}
-            </div>
-          </div>
+            </CardContent>
+          </Card>
         )}
 
         {/* STEP 1: Buyer info */}
         {step === 1 && selectedType && (
-          <div className="card animate-slide-up">
-            <button type="button" onClick={() => setStep(0)} style={{ color: 'var(--color-text-muted)', fontSize: '0.85rem', marginBottom: 20, background: 'none', border: 'none', cursor: 'pointer' }}>
-              ← Cambiar tipo
-            </button>
-
-            <div className="payment-box mb-6">
+          <Card className="animate-fade-in">
+            <CardHeader>
               <div className="flex items-center justify-between">
-                <span style={{ fontWeight: 700 }}>{selectedType.name}</span>
-                <span style={{ fontWeight: 800, fontSize: '1.2rem', color: 'var(--color-success)' }}>
-                  {formatCurrency(selectedType.price, selectedType.currency)}
-                </span>
+                <div>
+                  <CardTitle>Tus datos</CardTitle>
+                  <CardDescription>Para enviarte tu entrada</CardDescription>
+                </div>
+                <div className="text-right">
+                  <div className="font-bold text-green-500 text-xl">{formatCurrency(selectedType.price, selectedType.currency)}</div>
+                  <div className="text-xs text-muted-foreground">{selectedType.name}</div>
+                </div>
               </div>
-            </div>
-
-            <h2 style={{ fontWeight: 700, marginBottom: 20, fontSize: '1.1rem' }}>Tus datos</h2>
-
-            <div className="form-group">
-              <label className="form-label"><User size={12} style={{ display: 'inline', marginRight: 6 }} />Nombre completo *</label>
-              <input type="text" className="form-input" placeholder="Juan Pérez" value={form.buyer_name} onChange={setField('buyer_name')} required />
-            </div>
-
-            <div className="form-group">
-              <label className="form-label"><Mail size={12} style={{ display: 'inline', marginRight: 6 }} />Correo electrónico *</label>
-              <input type="email" className="form-input" placeholder="juan@ejemplo.com" value={form.buyer_email} onChange={setField('buyer_email')} required />
-              <p className="form-hint">Tu entrada digital se enviará aquí cuando el pago sea aprobado</p>
-            </div>
-
-            <div className="form-group">
-              <label className="form-label"><Phone size={12} style={{ display: 'inline', marginRight: 6 }} />Teléfono (opcional)</label>
-              <input type="tel" className="form-input" placeholder="0412-1234567" value={form.buyer_phone} onChange={setField('buyer_phone')} />
-            </div>
-
-            <button type="button" className="btn btn-primary" style={{ width: '100%' }} onClick={() => {
-              if (!form.buyer_name || !form.buyer_email) { toast.error('Nombre y correo son obligatorios'); return }
-              setStep(2)
-            }}>
-              Continuar al pago →
-            </button>
-          </div>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              <div className="space-y-2">
+                <Label htmlFor="bname">Nombre completo *</Label>
+                <Input id="bname" placeholder="Juan Pérez" value={form.buyer_name} onChange={setField('buyer_name')} required />
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="bemail">Correo electrónico *</Label>
+                <Input id="bemail" type="email" placeholder="juan@ejemplo.com" value={form.buyer_email} onChange={setField('buyer_email')} required />
+                <p className="text-xs text-muted-foreground">Tu entrada se enviará aquí al ser aprobado el pago</p>
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="bphone">Teléfono (opcional)</Label>
+                <Input id="bphone" type="tel" placeholder="0412-1234567" value={form.buyer_phone} onChange={setField('buyer_phone')} />
+              </div>
+              <div className="flex gap-3 pt-2">
+                <Button type="button" variant="outline" onClick={() => setStep(0)}>← Volver</Button>
+                <Button type="button" className="flex-1" onClick={() => {
+                  if (!form.buyer_name || !form.buyer_email) { toast.error('Nombre y correo son obligatorios'); return }
+                  setStep(2)
+                }}>
+                  Continuar al pago →
+                </Button>
+              </div>
+            </CardContent>
+          </Card>
         )}
 
         {/* STEP 2: Payment */}
         {step === 2 && (
-          <div className="card animate-slide-up">
-            <button type="button" onClick={() => setStep(1)} style={{ color: 'var(--color-text-muted)', fontSize: '0.85rem', marginBottom: 20, background: 'none', border: 'none', cursor: 'pointer' }}>
-              ← Volver
-            </button>
-
-            <h2 style={{ fontWeight: 700, marginBottom: 8, fontSize: '1.1rem' }}>Realiza el Pago Móvil</h2>
-            <p className="text-muted text-sm mb-6">Transfiere el monto exacto a los datos indicados y sube el comprobante</p>
-
-            <div className="payment-amount mb-4">
-              <div style={{ fontSize: '0.82rem', color: 'var(--color-text-muted)', marginBottom: 4 }}>Monto a pagar</div>
-              <div className="payment-amount-value">{formatCurrency(selectedType.price, selectedType.currency)}</div>
-            </div>
-
-            <div className="payment-box mb-6">
-              <div style={{ color: 'var(--color-accent)', fontWeight: 700, fontSize: '0.9rem', marginBottom: 12 }}>
-                📱 Datos de Pago Móvil
+          <Card className="animate-fade-in">
+            <CardHeader>
+              <CardTitle>Realiza el Pago Móvil</CardTitle>
+              <CardDescription>Transfiere el monto exacto y sube el comprobante</CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-5">
+              {/* Amount */}
+              <div className="text-center p-4 rounded-lg bg-muted/50 border">
+                <div className="text-xs text-muted-foreground mb-1">Monto a pagar</div>
+                <div className="text-3xl font-bold text-green-500">{formatCurrency(selectedType.price, selectedType.currency)}</div>
               </div>
-              {[
-                ['Teléfono', event.payment_phone],
-                ['Banco', event.payment_bank],
-                ['Cédula / RIF', event.payment_ci],
-              ].map(([label, value]) => (
-                <div key={label} className="payment-data-row">
-                  <span className="payment-data-label">{label}</span>
-                  <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-                    <span className="payment-data-value">{value}</span>
-                    <button
-                      type="button"
-                      className="copy-btn"
-                      onClick={() => { navigator.clipboard.writeText(value); toast.success(`${label} copiado`) }}
-                    >
-                      <CreditCard size={12} /> Copiar
-                    </button>
-                  </div>
+
+              {/* Bank data */}
+              <div className="rounded-lg border p-4 space-y-3">
+                <div className="flex items-center gap-2 text-sm font-semibold mb-3">
+                  <CreditCard className="h-4 w-4" />
+                  Datos de Pago Móvil
                 </div>
-              ))}
-            </div>
-
-            {/* Upload proof */}
-            <div className="form-group">
-              <label className="form-label"><Upload size={12} style={{ display: 'inline', marginRight: 6 }} />Comprobante de pago *</label>
-
-              {proofPreview ? (
-                <div style={{ textAlign: 'center' }}>
-                  <img src={proofPreview} alt="comprobante" style={{ maxHeight: 200, borderRadius: 'var(--radius-md)', marginBottom: 12 }} />
-                  <button type="button" className="btn btn-ghost btn-sm" onClick={() => { setProofFile(null); setProofPreview(null) }}>
-                    Cambiar imagen
-                  </button>
-                </div>
-              ) : (
-                <label style={{ display: 'block', cursor: 'pointer' }}>
-                  <div className="dropzone">
-                    <Upload className="dropzone-icon" />
-                    <p className="dropzone-text">Toca para subir el comprobante</p>
-                    <p className="dropzone-hint">PNG, JPG o PDF · Máx. 5MB</p>
+                {[
+                  ['Teléfono', event.payment_phone],
+                  ['Banco', event.payment_bank],
+                  ['Cédula / RIF', event.payment_ci],
+                ].map(([label, value]) => (
+                  <div key={label} className="flex items-center justify-between">
+                    <span className="text-sm text-muted-foreground">{label}</span>
+                    <div className="flex items-center gap-2">
+                      <span className="font-mono text-sm font-semibold">{value}</span>
+                      <button
+                        type="button"
+                        className="text-xs text-blue-400 hover:text-blue-300 transition-colors"
+                        onClick={() => { navigator.clipboard.writeText(value); toast.success(`${label} copiado`) }}
+                      >
+                        Copiar
+                      </button>
+                    </div>
                   </div>
-                  <input type="file" accept="image/*,.pdf" onChange={handleFileChange} style={{ display: 'none' }} />
-                </label>
-              )}
-            </div>
+                ))}
+              </div>
 
-            <button
-              type="button"
-              className="btn btn-primary btn-lg"
-              style={{ width: '100%' }}
-              disabled={submitting || !proofFile}
-              onClick={handleSubmitOrder}
-            >
-              {submitting ? <><div className="btn-spinner" /> Enviando...</> : '✅ Confirmar compra'}
-            </button>
-          </div>
+              {/* Upload */}
+              <div className="space-y-2">
+                <Label>Comprobante de pago *</Label>
+                {proofPreview ? (
+                  <div className="text-center space-y-2">
+                    <img src={proofPreview} alt="comprobante" className="max-h-48 rounded-lg mx-auto border" />
+                    <Button type="button" variant="ghost" size="sm" onClick={() => { setProofFile(null); setProofPreview(null) }}>
+                      Cambiar imagen
+                    </Button>
+                  </div>
+                ) : (
+                  <label className="block cursor-pointer">
+                    <div className="border-2 border-dashed rounded-lg p-8 text-center hover:border-foreground/40 transition-colors">
+                      <Upload className="h-8 w-8 text-muted-foreground mx-auto mb-2" />
+                      <p className="text-sm text-muted-foreground">Toca para subir el comprobante</p>
+                      <p className="text-xs text-muted-foreground/60 mt-1">PNG, JPG o PDF · Máx. 5MB</p>
+                    </div>
+                    <input type="file" accept="image/*,.pdf" onChange={handleFileChange} className="hidden" />
+                  </label>
+                )}
+              </div>
+
+              <div className="flex gap-3">
+                <Button type="button" variant="outline" onClick={() => setStep(1)}>← Volver</Button>
+                <Button type="button" className="flex-1" disabled={submitting || !proofFile} onClick={handleSubmitOrder}>
+                  {submitting
+                    ? <div className="h-4 w-4 border-2 border-primary-foreground/30 border-t-primary-foreground rounded-full animate-spin" />
+                    : '✅ Confirmar compra'
+                  }
+                </Button>
+              </div>
+            </CardContent>
+          </Card>
         )}
 
         {/* STEP 3: Success */}
         {step === 3 && order && (
-          <div className="animate-slide-up">
-            <div className="card text-center mb-6" style={{ borderColor: 'rgba(16,185,129,0.4)' }}>
-              <div style={{ fontSize: '3rem', marginBottom: 12 }}>🎉</div>
-              <h2 style={{ fontWeight: 800, color: 'var(--color-success)', marginBottom: 8 }}>¡Compra registrada!</h2>
-              <p className="text-muted">Tu pago está siendo revisado. Cuando sea aprobado recibirás tu entrada por correo en <strong>{form.buyer_email}</strong></p>
-            </div>
+          <div className="space-y-4 animate-fade-in">
+            <Card className="border-green-500/30">
+              <CardContent className="pt-6 text-center">
+                <div className="text-4xl mb-3">🎉</div>
+                <h2 className="text-xl font-bold text-green-500 mb-2">¡Compra registrada!</h2>
+                <p className="text-sm text-muted-foreground">
+                  Tu pago está siendo revisado. Recibirás tu entrada en <strong>{form.buyer_email}</strong> cuando sea aprobado.
+                </p>
+              </CardContent>
+            </Card>
 
-            {/* Ticket preview */}
+            {/* Ticket */}
             <div ref={ticketRef}>
-              <div className="ticket-card mb-6">
-                <div className="ticket-header">
-                  <h3 className="ticket-title">{event.name}</h3>
-                  <p className="ticket-subtitle">{selectedType?.name}</p>
+              <Card className="overflow-hidden">
+                <div className="bg-foreground text-background p-6 text-center">
+                  <h3 className="text-xl font-bold">{event.name}</h3>
+                  <p className="text-sm opacity-70 mt-1">{selectedType?.name}</p>
                 </div>
 
-                <div className="ticket-body">
-                  <div className="ticket-info-grid">
-                    <div className="ticket-info-item">
-                      <div className="ticket-info-label">Comprador</div>
-                      <div className="ticket-info-value">{order.buyer_name}</div>
-                    </div>
-                    <div className="ticket-info-item">
-                      <div className="ticket-info-label">Fecha</div>
-                      <div className="ticket-info-value">{format(new Date(event.date), 'dd/MM/yyyy')}</div>
-                    </div>
-                    <div className="ticket-info-item">
-                      <div className="ticket-info-label">Hora</div>
-                      <div className="ticket-info-value">{format(new Date(event.date), 'HH:mm')}</div>
-                    </div>
-                    <div className="ticket-info-item">
-                      <div className="ticket-info-label">Precio</div>
-                      <div className="ticket-info-value" style={{ color: 'var(--color-success)' }}>
-                        {formatCurrency(selectedType?.price, selectedType?.currency)}
+                <CardContent className="p-6 space-y-4">
+                  <div className="grid grid-cols-2 gap-4">
+                    {[
+                      ['Comprador', order.buyer_name],
+                      ['Fecha', format(new Date(event.date), 'dd/MM/yyyy')],
+                      ['Hora', format(new Date(event.date), 'HH:mm')],
+                      ['Precio', formatCurrency(selectedType?.price, selectedType?.currency)],
+                      ...(event.location ? [['Lugar', event.location]] : []),
+                    ].map(([l, v]) => (
+                      <div key={l}>
+                        <div className="text-xs text-muted-foreground uppercase tracking-wide">{l}</div>
+                        <div className="font-semibold text-sm mt-0.5">{v}</div>
                       </div>
-                    </div>
-                    {event.location && (
-                      <div className="ticket-info-item" style={{ gridColumn: '1/-1' }}>
-                        <div className="ticket-info-label">Lugar</div>
-                        <div className="ticket-info-value">{event.location}</div>
-                      </div>
-                    )}
+                    ))}
                   </div>
 
-                  <div className="ticket-qr-section">
-                    <div className="ticket-qr-wrapper">
-                      <QRCodeSVG
-                        value={order.qr_code}
-                        size={140}
-                        bgColor="#ffffff"
-                        fgColor="#000000"
-                        level="M"
-                      />
+                  <Separator />
+
+                  <div className="text-center space-y-3">
+                    <Badge variant="warning">⚠️ Válido solo si el pago es aprobado</Badge>
+                    <div className="bg-white inline-flex p-3 rounded-lg">
+                      <QRCodeSVG value={order.qr_code} size={140} bgColor="#ffffff" fgColor="#000000" level="M" />
                     </div>
-                    <p style={{ fontSize: '0.72rem', color: 'var(--color-text-muted)', marginBottom: 4 }}>
-                      ⚠️ Válido solo si el pago es aprobado
-                    </p>
-                    <div className="ticket-qr-code">{order.qr_code}</div>
+                    <p className="font-mono text-xs text-muted-foreground">{order.qr_code}</p>
                   </div>
-                </div>
-              </div>
+                </CardContent>
+              </Card>
             </div>
 
             <div className="flex gap-3 justify-center">
-              <button onClick={downloadTicket} className="btn btn-secondary">
-                <Download size={15} /> Descargar PDF
-              </button>
-              <button onClick={() => { setStep(0); setOrder(null); setForm({ buyer_name: '', buyer_email: '', buyer_phone: '' }); setProofFile(null); setProofPreview(null) }} className="btn btn-ghost">
-                Comprar otro ticket
-              </button>
+              <Button variant="outline" onClick={downloadTicket}>
+                <Download className="h-4 w-4" /> Descargar PDF
+              </Button>
+              <Button variant="ghost" onClick={() => { setStep(0); setOrder(null); setForm({ buyer_name:'', buyer_email:'', buyer_phone:'' }); setProofFile(null); setProofPreview(null) }}>
+                Comprar otro
+              </Button>
             </div>
           </div>
         )}

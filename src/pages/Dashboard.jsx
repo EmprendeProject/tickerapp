@@ -1,32 +1,27 @@
 import { useState, useEffect } from 'react'
 import { Link } from 'react-router-dom'
-import {
-  Calendar, Ticket, DollarSign, Users, TrendingUp,
-  ArrowUpRight, Clock, CheckCircle, XCircle, AlertCircle
-} from 'lucide-react'
+import { Calendar, Ticket, DollarSign, AlertCircle, TrendingUp, ArrowUpRight, CheckCircle, XCircle } from 'lucide-react'
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
+import { Button } from '@/components/ui/button'
+import { Badge } from '@/components/ui/badge'
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table'
 import {
   AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip,
   ResponsiveContainer, BarChart, Bar
 } from 'recharts'
-import { supabase } from '../lib/supabase'
-import { useAuth } from '../contexts/AuthContext'
-import { formatCurrency, formatDate, getStatusLabel, getStatusColor } from '../lib/utils'
+import { supabase } from '@/lib/supabase'
+import { useAuth } from '@/contexts/AuthContext'
+import { formatCurrency, getStatusLabel } from '@/lib/utils'
 import { format, subDays } from 'date-fns'
 import { es } from 'date-fns/locale'
 
-const CustomTooltip = ({ active, payload, label }) => {
+const ChartTooltip = ({ active, payload, label }) => {
   if (active && payload?.length) {
     return (
-      <div style={{
-        background: 'var(--color-bg-elevated)',
-        border: '1px solid var(--color-border)',
-        borderRadius: 'var(--radius-md)',
-        padding: '8px 14px',
-        fontSize: '0.82rem',
-      }}>
-        <p style={{ color: 'var(--color-text-muted)', marginBottom: 4 }}>{label}</p>
+      <div className="rounded-lg border bg-card p-3 shadow-lg text-xs">
+        <p className="text-muted-foreground mb-1">{label}</p>
         {payload.map(p => (
-          <p key={p.name} style={{ color: p.color, fontWeight: 700 }}>
+          <p key={p.name} style={{ color: p.color }} className="font-semibold">
             {p.name}: {p.value}
           </p>
         ))}
@@ -43,23 +38,14 @@ export default function Dashboard() {
   const [chartData, setChartData] = useState([])
   const [loading, setLoading] = useState(true)
 
-  useEffect(() => {
-    loadData()
-  }, [user])
+  useEffect(() => { loadData() }, [user])
 
   const loadData = async () => {
     if (!user) return
     setLoading(true)
-
-    // Fetch events
-    const { data: events } = await supabase
-      .from('events')
-      .select('id')
-      .eq('organizer_id', user.id)
-
+    const { data: events } = await supabase.from('events').select('id').eq('organizer_id', user.id)
     const eventIds = events?.map(e => e.id) || []
 
-    // Fetch orders
     let orders = []
     if (eventIds.length > 0) {
       const { data } = await supabase
@@ -72,202 +58,162 @@ export default function Dashboard() {
 
     const approved = orders.filter(o => o.status === 'approved')
     const pending  = orders.filter(o => o.status === 'pending')
-    const revenue  = approved.reduce((sum, o) => sum + (o.total_amount || 0), 0)
-
-    setMetrics({
-      events: eventIds.length,
-      sold: approved.length,
-      revenue,
-      pending: pending.length,
-    })
+    setMetrics({ events: eventIds.length, sold: approved.length, revenue: approved.reduce((s, o) => s + (o.total_amount || 0), 0), pending: pending.length })
     setRecentOrders(orders.slice(0, 6))
 
-    // Build chart data (last 7 days)
     const days = Array.from({ length: 7 }, (_, i) => {
       const d = subDays(new Date(), 6 - i)
       const label = format(d, 'dd/MM', { locale: es })
       const dayStr = format(d, 'yyyy-MM-dd')
-      const dayOrders = orders.filter(o =>
-        o.status === 'approved' && o.created_at?.startsWith(dayStr)
-      )
+      const dayOrders = orders.filter(o => o.status === 'approved' && o.created_at?.startsWith(dayStr))
       return { label, tickets: dayOrders.length, ingresos: dayOrders.reduce((s, o) => s + (o.total_amount || 0), 0) }
     })
     setChartData(days)
-
     setLoading(false)
   }
 
-  const statusIcon = (status) => {
-    if (status === 'approved') return <CheckCircle size={14} color="var(--color-success)" />
-    if (status === 'rejected') return <XCircle size={14} color="var(--color-danger)" />
-    return <AlertCircle size={14} color="var(--color-warning)" />
-  }
+  const metricCards = [
+    { label: 'Eventos creados',       value: metrics.events,                  icon: Calendar,      to: '/eventos' },
+    { label: 'Tickets vendidos',      value: metrics.sold,                    icon: Ticket,        to: '/ordenes' },
+    { label: 'Ingresos totales',      value: formatCurrency(metrics.revenue), icon: DollarSign,    to: null },
+    { label: 'Pagos por verificar',   value: metrics.pending,                 icon: AlertCircle,   to: '/ordenes' },
+  ]
 
   if (loading) return (
-    <div className="page-wrapper">
-      <div className="grid-4" style={{ marginBottom: 24 }}>
-        {[1,2,3,4].map(i => <div key={i} className="metric-card skeleton" style={{ height: 120 }} />)}
+    <div className="p-8">
+      <div className="grid grid-cols-4 gap-4 mb-6">
+        {[1,2,3,4].map(i => <div key={i} className="skeleton h-28 rounded-xl" />)}
       </div>
     </div>
   )
 
   return (
-    <div className="page-wrapper animate-fade-in">
-      <div className="page-header">
-        <h1 className="page-title">Dashboard</h1>
-        <p className="page-subtitle">Resumen de tus eventos y ventas</p>
+    <div className="p-8 space-y-6 animate-fade-in">
+      <div>
+        <h1 className="text-2xl font-bold">Dashboard</h1>
+        <p className="text-sm text-muted-foreground">Resumen de tus eventos y ventas</p>
       </div>
 
-      {/* Metrics */}
-      <div className="grid-4 mb-8">
-        <MetricCard
-          icon={<Calendar size={20} />}
-          iconBg="rgba(124,58,237,0.15)"
-          iconColor="var(--color-primary)"
-          value={metrics.events}
-          label="Eventos creados"
-          link="/eventos"
-        />
-        <MetricCard
-          icon={<Ticket size={20} />}
-          iconBg="rgba(6,182,212,0.15)"
-          iconColor="var(--color-accent)"
-          value={metrics.sold}
-          label="Tickets vendidos"
-          link="/ordenes"
-        />
-        <MetricCard
-          icon={<DollarSign size={20} />}
-          iconBg="rgba(16,185,129,0.15)"
-          iconColor="var(--color-success)"
-          value={formatCurrency(metrics.revenue)}
-          label="Ingresos totales"
-        />
-        <MetricCard
-          icon={<AlertCircle size={20} />}
-          iconBg="rgba(245,158,11,0.15)"
-          iconColor="var(--color-warning)"
-          value={metrics.pending}
-          label="Pagos por verificar"
-          link="/ordenes"
-          alert={metrics.pending > 0}
-        />
+      {/* Metric cards */}
+      <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+        {metricCards.map(({ label, value, icon: Icon, to }) => {
+          const card = (
+            <Card className="hover:border-border/80 transition-colors">
+              <CardHeader className="flex flex-row items-center justify-between pb-2 space-y-0">
+                <CardTitle className="text-sm font-medium text-muted-foreground">{label}</CardTitle>
+                <Icon className="h-4 w-4 text-muted-foreground" />
+              </CardHeader>
+              <CardContent>
+                <div className="text-2xl font-bold">{value}</div>
+                {to && (
+                  <p className="text-xs text-muted-foreground mt-1 flex items-center gap-1">
+                    Ver detalle <ArrowUpRight className="h-3 w-3" />
+                  </p>
+                )}
+              </CardContent>
+            </Card>
+          )
+          return to
+            ? <Link key={label} to={to} className="no-underline">{card}</Link>
+            : <div key={label}>{card}</div>
+        })}
       </div>
 
       {/* Charts */}
-      <div className="grid-2 mb-8">
-        <div className="chart-container">
-          <div className="chart-header">
-            <h3 className="chart-title">Tickets vendidos (7 días)</h3>
-            <TrendingUp size={16} color="var(--color-text-muted)" />
-          </div>
-          <ResponsiveContainer width="100%" height={200}>
-            <AreaChart data={chartData}>
-              <defs>
-                <linearGradient id="gradTickets" x1="0" y1="0" x2="0" y2="1">
-                  <stop offset="5%"  stopColor="#7c3aed" stopOpacity={0.3} />
-                  <stop offset="95%" stopColor="#7c3aed" stopOpacity={0} />
-                </linearGradient>
-              </defs>
-              <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.05)" />
-              <XAxis dataKey="label" tick={{ fill: 'var(--color-text-muted)', fontSize: 11 }} axisLine={false} tickLine={false} />
-              <YAxis tick={{ fill: 'var(--color-text-muted)', fontSize: 11 }} axisLine={false} tickLine={false} />
-              <Tooltip content={<CustomTooltip />} />
-              <Area type="monotone" dataKey="tickets" name="Tickets" stroke="#7c3aed" strokeWidth={2} fill="url(#gradTickets)" />
-            </AreaChart>
-          </ResponsiveContainer>
-        </div>
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+        <Card>
+          <CardHeader className="flex flex-row items-center justify-between pb-4">
+            <CardTitle className="text-sm font-medium">Tickets vendidos (7 días)</CardTitle>
+            <TrendingUp className="h-4 w-4 text-muted-foreground" />
+          </CardHeader>
+          <CardContent>
+            <ResponsiveContainer width="100%" height={200}>
+              <AreaChart data={chartData}>
+                <defs>
+                  <linearGradient id="gradTickets" x1="0" y1="0" x2="0" y2="1">
+                    <stop offset="5%"  stopColor="hsl(var(--foreground))" stopOpacity={0.2} />
+                    <stop offset="95%" stopColor="hsl(var(--foreground))" stopOpacity={0} />
+                  </linearGradient>
+                </defs>
+                <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" />
+                <XAxis dataKey="label" tick={{ fill: 'hsl(var(--muted-foreground))', fontSize: 11 }} axisLine={false} tickLine={false} />
+                <YAxis tick={{ fill: 'hsl(var(--muted-foreground))', fontSize: 11 }} axisLine={false} tickLine={false} />
+                <Tooltip content={<ChartTooltip />} />
+                <Area type="monotone" dataKey="tickets" name="Tickets" stroke="hsl(var(--foreground))" strokeWidth={2} fill="url(#gradTickets)" />
+              </AreaChart>
+            </ResponsiveContainer>
+          </CardContent>
+        </Card>
 
-        <div className="chart-container">
-          <div className="chart-header">
-            <h3 className="chart-title">Ingresos por día ($)</h3>
-            <DollarSign size={16} color="var(--color-text-muted)" />
-          </div>
-          <ResponsiveContainer width="100%" height={200}>
-            <BarChart data={chartData}>
-              <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.05)" />
-              <XAxis dataKey="label" tick={{ fill: 'var(--color-text-muted)', fontSize: 11 }} axisLine={false} tickLine={false} />
-              <YAxis tick={{ fill: 'var(--color-text-muted)', fontSize: 11 }} axisLine={false} tickLine={false} />
-              <Tooltip content={<CustomTooltip />} />
-              <Bar dataKey="ingresos" name="Ingresos $" fill="#06b6d4" radius={[4, 4, 0, 0]} />
-            </BarChart>
-          </ResponsiveContainer>
-        </div>
+        <Card>
+          <CardHeader className="flex flex-row items-center justify-between pb-4">
+            <CardTitle className="text-sm font-medium">Ingresos por día ($)</CardTitle>
+            <DollarSign className="h-4 w-4 text-muted-foreground" />
+          </CardHeader>
+          <CardContent>
+            <ResponsiveContainer width="100%" height={200}>
+              <BarChart data={chartData}>
+                <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" />
+                <XAxis dataKey="label" tick={{ fill: 'hsl(var(--muted-foreground))', fontSize: 11 }} axisLine={false} tickLine={false} />
+                <YAxis tick={{ fill: 'hsl(var(--muted-foreground))', fontSize: 11 }} axisLine={false} tickLine={false} />
+                <Tooltip content={<ChartTooltip />} />
+                <Bar dataKey="ingresos" name="Ingresos $" fill="hsl(var(--foreground))" radius={[4,4,0,0]} opacity={0.8} />
+              </BarChart>
+            </ResponsiveContainer>
+          </CardContent>
+        </Card>
       </div>
 
       {/* Recent orders */}
-      <div className="card">
-        <div className="flex items-center justify-between mb-6">
-          <h3 style={{ fontWeight: 700 }}>Órdenes recientes</h3>
-          <Link to="/ordenes" className="btn btn-ghost btn-sm">
-            Ver todas <ArrowUpRight size={14} />
-          </Link>
-        </div>
-
-        {recentOrders.length === 0 ? (
-          <div className="empty-state">
-            <Ticket className="empty-state-icon" />
-            <p className="empty-state-title">Sin órdenes aún</p>
-            <p className="empty-state-desc">Cuando alguien compre un ticket aparecerá aquí</p>
-          </div>
-        ) : (
-          <div className="table-wrapper">
-            <table className="table">
-              <thead>
-                <tr>
-                  <th>Comprador</th>
-                  <th>Evento</th>
-                  <th>Ticket</th>
-                  <th>Monto</th>
-                  <th>Estado</th>
-                  <th>Fecha</th>
-                </tr>
-              </thead>
-              <tbody>
+      <Card>
+        <CardHeader className="flex flex-row items-center justify-between">
+          <CardTitle className="text-base">Órdenes recientes</CardTitle>
+          <Button variant="ghost" size="sm" asChild>
+            <Link to="/ordenes">Ver todas <ArrowUpRight className="h-3 w-3 ml-1" /></Link>
+          </Button>
+        </CardHeader>
+        <CardContent>
+          {recentOrders.length === 0 ? (
+            <div className="flex flex-col items-center py-12 text-center">
+              <Ticket className="h-12 w-12 text-muted-foreground/40 mb-3" />
+              <p className="font-medium">Sin órdenes aún</p>
+              <p className="text-sm text-muted-foreground">Cuando alguien compre un ticket aparecerá aquí</p>
+            </div>
+          ) : (
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead>Comprador</TableHead>
+                  <TableHead>Evento</TableHead>
+                  <TableHead>Ticket</TableHead>
+                  <TableHead>Monto</TableHead>
+                  <TableHead>Estado</TableHead>
+                  <TableHead>Fecha</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
                 {recentOrders.map(order => (
-                  <tr key={order.id}>
-                    <td>
-                      <div style={{ fontWeight: 600 }}>{order.buyer_name}</div>
-                      <div style={{ fontSize: '0.78rem', color: 'var(--color-text-muted)' }}>{order.buyer_email}</div>
-                    </td>
-                    <td>{order.events?.name || '—'}</td>
-                    <td>{order.ticket_types?.name || '—'}</td>
-                    <td style={{ fontWeight: 700, color: 'var(--color-success)' }}>
-                      {formatCurrency(order.total_amount)}
-                    </td>
-                    <td>
-                      <span className={`badge badge-${order.status}`}>
-                        {statusIcon(order.status)} {getStatusLabel(order.status)}
-                      </span>
-                    </td>
-                    <td style={{ color: 'var(--color-text-muted)', fontSize: '0.82rem' }}>
+                  <TableRow key={order.id}>
+                    <TableCell>
+                      <div className="font-medium">{order.buyer_name}</div>
+                      <div className="text-xs text-muted-foreground">{order.buyer_email}</div>
+                    </TableCell>
+                    <TableCell className="text-sm">{order.events?.name || '—'}</TableCell>
+                    <TableCell className="text-sm">{order.ticket_types?.name || '—'}</TableCell>
+                    <TableCell className="font-semibold text-green-500">{formatCurrency(order.total_amount)}</TableCell>
+                    <TableCell>
+                      <Badge variant={order.status}>{getStatusLabel(order.status)}</Badge>
+                    </TableCell>
+                    <TableCell className="text-xs text-muted-foreground">
                       {format(new Date(order.created_at), 'dd/MM/yy HH:mm')}
-                    </td>
-                  </tr>
+                    </TableCell>
+                  </TableRow>
                 ))}
-              </tbody>
-            </table>
-          </div>
-        )}
-      </div>
+              </TableBody>
+            </Table>
+          )}
+        </CardContent>
+      </Card>
     </div>
   )
-}
-
-function MetricCard({ icon, iconBg, iconColor, value, label, link, alert }) {
-  const content = (
-    <div className={`metric-card${alert ? ' animate-pulse-glow' : ''}`}>
-      <div className="metric-icon" style={{ background: iconBg, color: iconColor }}>
-        {icon}
-      </div>
-      <div className="metric-value">{value}</div>
-      <div className="metric-label">{label}</div>
-      {link && (
-        <div style={{ marginTop: 8, fontSize: '0.78rem', color: 'var(--color-primary-light)', display: 'flex', alignItems: 'center', gap: 4 }}>
-          Ver detalle <ArrowUpRight size={12} />
-        </div>
-      )}
-    </div>
-  )
-  return link ? <Link to={link} style={{ textDecoration: 'none' }}>{content}</Link> : content
 }

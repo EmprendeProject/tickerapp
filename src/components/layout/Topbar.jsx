@@ -1,5 +1,7 @@
-import { useLocation, Link } from 'react-router-dom'
-import { Plus, Bell } from 'lucide-react'
+import { Link, useLocation } from 'react-router-dom'
+import { Plus } from 'lucide-react'
+import { Button } from '@/components/ui/button'
+import { Separator } from '@/components/ui/separator'
 
 const pageTitles = {
   '/dashboard':     'Dashboard',
@@ -14,13 +16,15 @@ export default function Topbar() {
   const title = pageTitles[pathname] || 'TickerApp'
 
   return (
-    <header className="topbar">
-      <span className="topbar-title">{title}</span>
-      <div className="topbar-actions">
-        <Link to="/eventos/crear" className="btn btn-primary btn-sm">
-          <Plus size={15} />
-          Nuevo Evento
-        </Link>
+    <header className="sticky top-0 z-40 bg-background/80 backdrop-blur-sm border-b">
+      <div className="flex h-14 items-center justify-between px-6">
+        <p className="text-sm font-medium text-muted-foreground">{title}</p>
+        <Button asChild size="sm">
+          <Link to="/eventos/crear">
+            <Plus className="h-4 w-4" />
+            Nuevo Evento
+          </Link>
+        </Button>
       </div>
     </header>
   )

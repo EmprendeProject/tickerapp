@@ -1,9 +1,14 @@
 import { useState, useEffect } from 'react'
 import { Link } from 'react-router-dom'
-import { Plus, Search, Calendar, MapPin, Ticket, Users, ExternalLink, Edit, Trash2 } from 'lucide-react'
-import { supabase } from '../lib/supabase'
-import { useAuth } from '../contexts/AuthContext'
-import { formatDate, formatCurrency } from '../lib/utils'
+import { Plus, Search, Calendar, MapPin, Ticket, Trash2, ExternalLink } from 'lucide-react'
+import { Card, CardContent } from '@/components/ui/card'
+import { Button } from '@/components/ui/button'
+import { Input } from '@/components/ui/input'
+import { Badge } from '@/components/ui/badge'
+import { Progress } from '@/components/ui/progress'
+import { supabase } from '@/lib/supabase'
+import { useAuth } from '@/contexts/AuthContext'
+import { formatCurrency } from '@/lib/utils'
 import toast from 'react-hot-toast'
 import { format } from 'date-fns'
 import { es } from 'date-fns/locale'
@@ -20,7 +25,7 @@ export default function Events() {
   const loadEvents = async () => {
     if (!user) return
     setLoading(true)
-    const { data, error } = await supabase
+    const { data } = await supabase
       .from('events')
       .select(`*, ticket_types(id, name, price, quantity, sold)`)
       .eq('organizer_id', user.id)
@@ -45,153 +50,140 @@ export default function Events() {
     e.location?.toLowerCase().includes(search.toLowerCase())
   )
 
-  const getTotalSold = (event) => (event.ticket_types || []).reduce((s, t) => s + (t.sold || 0), 0)
-  const getTotalCap  = (event) => (event.ticket_types || []).reduce((s, t) => s + (t.quantity || 0), 0)
-  const getRevenue   = (event) => (event.ticket_types || []).reduce((s, t) => s + ((t.sold || 0) * (t.price || 0)), 0)
+  const getSold    = e => (e.ticket_types || []).reduce((s, t) => s + (t.sold || 0), 0)
+  const getCap     = e => (e.ticket_types || []).reduce((s, t) => s + (t.quantity || 0), 0)
+  const getRevenue = e => (e.ticket_types || []).reduce((s, t) => s + ((t.sold || 0) * (t.price || 0)), 0)
 
   return (
-    <div className="page-wrapper animate-fade-in">
-      <div className="page-header flex items-center justify-between">
+    <div className="p-8 space-y-6 animate-fade-in">
+      <div className="flex items-center justify-between">
         <div>
-          <h1 className="page-title">Mis Eventos</h1>
-          <p className="page-subtitle">{events.length} evento{events.length !== 1 ? 's' : ''} creado{events.length !== 1 ? 's' : ''}</p>
+          <h1 className="text-2xl font-bold">Mis Eventos</h1>
+          <p className="text-sm text-muted-foreground">{events.length} evento{events.length !== 1 ? 's' : ''} creado{events.length !== 1 ? 's' : ''}</p>
         </div>
-        <Link to="/eventos/crear" className="btn btn-primary">
-          <Plus size={16} /> Crear Evento
-        </Link>
+        <Button asChild>
+          <Link to="/eventos/crear"><Plus className="h-4 w-4" /> Crear Evento</Link>
+        </Button>
       </div>
 
       {/* Search */}
-      <div className="form-input-group mb-6" style={{ maxWidth: 400 }}>
-        <Search className="form-input-prefix" size={16} />
-        <input
-          type="text"
-          className="form-input"
+      <div className="relative max-w-sm">
+        <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+        <Input
           placeholder="Buscar eventos..."
+          className="pl-9"
           value={search}
           onChange={e => setSearch(e.target.value)}
         />
       </div>
 
       {loading ? (
-        <div className="event-grid">
-          {[1,2,3].map(i => <div key={i} className="skeleton" style={{ height: 360, borderRadius: 'var(--radius-xl)' }} />)}
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+          {[1,2,3].map(i => <div key={i} className="skeleton h-80 rounded-xl" />)}
         </div>
       ) : filtered.length === 0 ? (
-        <div className="empty-state card">
-          <Calendar className="empty-state-icon" />
-          <h3 className="empty-state-title">{search ? 'Sin resultados' : 'Sin eventos aún'}</h3>
-          <p className="empty-state-desc">
-            {search ? 'Prueba con otra búsqueda' : 'Crea tu primer evento para empezar a vender tickets'}
-          </p>
-          {!search && (
-            <Link to="/eventos/crear" className="btn btn-primary">
-              <Plus size={16} /> Crear mi primer evento
-            </Link>
-          )}
-        </div>
+        <Card className="py-16">
+          <div className="flex flex-col items-center text-center">
+            <Calendar className="h-12 w-12 text-muted-foreground/40 mb-4" />
+            <h3 className="font-semibold mb-1">{search ? 'Sin resultados' : 'Sin eventos aún'}</h3>
+            <p className="text-sm text-muted-foreground mb-6">
+              {search ? 'Prueba con otra búsqueda' : 'Crea tu primer evento para empezar a vender tickets'}
+            </p>
+            {!search && (
+              <Button asChild><Link to="/eventos/crear"><Plus className="h-4 w-4" /> Crear mi primer evento</Link></Button>
+            )}
+          </div>
+        </Card>
       ) : (
-        <div className="event-grid">
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
           {filtered.map(event => {
-            const sold = getTotalSold(event)
-            const cap  = getTotalCap(event)
+            const sold = getSold(event)
+            const cap  = getCap(event)
             const rev  = getRevenue(event)
             const pct  = cap > 0 ? Math.round((sold / cap) * 100) : 0
             const isPast = new Date(event.date) < new Date()
 
             return (
-              <div key={event.id} className="event-card">
+              <Card key={event.id} className="overflow-hidden group hover:border-border/80 transition-all">
                 {/* Banner */}
-                <div className="event-card-banner">
+                <div className="h-40 relative overflow-hidden bg-muted">
                   {event.banner_url ? (
-                    <img src={event.banner_url} alt={event.name} />
+                    <img src={event.banner_url} alt={event.name} className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500" />
                   ) : (
-                    <div style={{
-                      width: '100%', height: '100%',
-                      background: 'linear-gradient(135deg, #1a0a3d 0%, #0a1a3d 100%)',
-                      display: 'flex', alignItems: 'center', justifyContent: 'center',
-                    }}>
-                      <Calendar size={48} color="rgba(255,255,255,0.15)" />
+                    <div className="w-full h-full flex items-center justify-center">
+                      <Calendar className="h-12 w-12 text-muted-foreground/20" />
                     </div>
                   )}
-                  <div className="event-card-badge">
-                    <span className={`badge ${isPast ? 'badge-info' : 'badge-primary'}`}>
+                  <div className="absolute top-3 right-3">
+                    <Badge variant={isPast ? 'secondary' : 'default'}>
                       {isPast ? 'Finalizado' : 'Próximo'}
-                    </span>
+                    </Badge>
                   </div>
                 </div>
 
-                {/* Body */}
-                <div className="event-card-body">
-                  <h3 className="event-card-title">{event.name}</h3>
-                  <div className="event-card-meta">
-                    <div className="event-meta-item">
-                      <Calendar size={13} />
-                      {format(new Date(event.date), "EEEE dd 'de' MMMM, HH:mm", { locale: es })}
-                    </div>
-                    {event.location && (
-                      <div className="event-meta-item">
-                        <MapPin size={13} />
-                        {event.location}
+                <CardContent className="p-5 space-y-4">
+                  <div>
+                    <h3 className="font-bold text-base mb-2 line-clamp-1">{event.name}</h3>
+                    <div className="space-y-1">
+                      <div className="flex items-center gap-2 text-xs text-muted-foreground">
+                        <Calendar className="h-3 w-3 shrink-0" />
+                        {format(new Date(event.date), "EEEE dd 'de' MMMM, HH:mm", { locale: es })}
                       </div>
-                    )}
+                      {event.location && (
+                        <div className="flex items-center gap-2 text-xs text-muted-foreground">
+                          <MapPin className="h-3 w-3 shrink-0" />
+                          {event.location}
+                        </div>
+                      )}
+                    </div>
                   </div>
 
                   {/* Stats */}
-                  <div className="event-card-stats">
-                    <div className="event-stat">
-                      <div className="event-stat-value">{sold}</div>
-                      <div className="event-stat-label">Vendidos</div>
-                    </div>
-                    <div className="event-stat">
-                      <div className="event-stat-value">{cap}</div>
-                      <div className="event-stat-label">Capacidad</div>
-                    </div>
-                    <div className="event-stat">
-                      <div className="event-stat-value" style={{ color: 'var(--color-success)', fontSize: '1.1rem' }}>
-                        {formatCurrency(rev)}
+                  <div className="grid grid-cols-3 gap-2 p-3 rounded-lg bg-muted/50">
+                    {[
+                      { label: 'Vendidos', value: sold },
+                      { label: 'Capacidad', value: cap },
+                      { label: 'Ingresos', value: formatCurrency(rev), green: true },
+                    ].map(s => (
+                      <div key={s.label} className="text-center">
+                        <div className={`text-lg font-bold ${s.green ? 'text-green-500' : ''}`}>{s.value}</div>
+                        <div className="text-[10px] text-muted-foreground uppercase tracking-wide">{s.label}</div>
                       </div>
-                      <div className="event-stat-label">Ingresos</div>
-                    </div>
+                    ))}
                   </div>
 
                   {/* Progress */}
-                  <div className="progress-bar-wrapper mb-4">
-                    <div className="progress-bar-header">
+                  <div className="space-y-1">
+                    <div className="flex justify-between text-xs text-muted-foreground">
                       <span>Ocupación</span>
-                      <span style={{ color: pct > 80 ? 'var(--color-danger)' : pct > 50 ? 'var(--color-warning)' : 'var(--color-success)', fontWeight: 700 }}>
-                        {pct}%
-                      </span>
+                      <span className={pct > 80 ? 'text-red-400' : pct > 50 ? 'text-yellow-400' : 'text-green-400'}>{pct}%</span>
                     </div>
-                    <div className="progress-bar">
-                      <div className="progress-bar-fill" style={{ width: `${pct}%` }} />
-                    </div>
+                    <Progress value={pct} className="h-1.5" />
                   </div>
 
                   {/* Actions */}
-                  <div className="event-card-actions">
-                    <Link to={`/eventos/${event.id}`} className="btn btn-primary btn-sm" style={{ flex: 1 }}>
-                      <ExternalLink size={13} /> Ver detalle
-                    </Link>
-                    <a
-                      href={`/evento/${event.id}/comprar`}
-                      target="_blank"
-                      rel="noreferrer"
-                      className="btn btn-secondary btn-sm"
-                      title="Página pública de venta"
-                    >
-                      <Ticket size={13} />
-                    </a>
-                    <button
-                      onClick={() => deleteEvent(event.id)}
-                      className="btn btn-danger btn-sm"
+                  <div className="flex gap-2 pt-1">
+                    <Button asChild size="sm" className="flex-1">
+                      <Link to={`/eventos/${event.id}`}><ExternalLink className="h-3 w-3" /> Ver detalle</Link>
+                    </Button>
+                    <Button asChild size="sm" variant="outline" title="Página pública">
+                      <a href={`/evento/${event.id}/comprar`} target="_blank" rel="noreferrer">
+                        <Ticket className="h-3 w-3" />
+                      </a>
+                    </Button>
+                    <Button
+                      size="sm"
+                      variant="destructive"
                       disabled={deleting === event.id}
+                      onClick={() => deleteEvent(event.id)}
                     >
-                      {deleting === event.id ? <div className="btn-spinner" style={{ borderTopColor: 'var(--color-danger)' }} /> : <Trash2 size={13} />}
-                    </button>
+                      {deleting === event.id
+                        ? <div className="h-3 w-3 border border-white/30 border-t-white rounded-full animate-spin" />
+                        : <Trash2 className="h-3 w-3" />}
+                    </Button>
                   </div>
-                </div>
-              </div>
+                </CardContent>
+              </Card>
             )
           })}
         </div>

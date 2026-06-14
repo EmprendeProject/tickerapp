@@ -1,165 +1,139 @@
 import { useState, useEffect } from 'react'
-import { User, Building2, Phone, Smartphone, CreditCard, Bell, Save } from 'lucide-react'
-import { supabase } from '../lib/supabase'
-import { useAuth } from '../contexts/AuthContext'
+import { Save, Bell } from 'lucide-react'
+import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card'
+import { Button } from '@/components/ui/button'
+import { Input } from '@/components/ui/input'
+import { Label } from '@/components/ui/label'
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
+import { Separator } from '@/components/ui/separator'
+import { supabase } from '@/lib/supabase'
+import { useAuth } from '@/contexts/AuthContext'
 import toast from 'react-hot-toast'
+
+const BANKS = ['Banco de Venezuela', 'Banesco', 'Mercantil', 'BBVA Provincial', 'Bicentenario', 'BNC', 'Banco Exterior', 'Banplus', 'Sofitasa', 'Otro']
 
 export default function Settings() {
   const { user, profile, fetchProfile } = useAuth()
   const [saving, setSaving] = useState(false)
-
-  const [form, setForm] = useState({
-    full_name: '',
-    org_name: '',
-    phone: '',
-    payment_phone: '',
-    payment_bank: '',
-    payment_ci: '',
-    email_notifications: true,
-  })
+  const [form, setForm] = useState({ full_name: '', org_name: '', phone: '', payment_phone: '', payment_bank: '', payment_ci: '', email_notifications: true })
 
   useEffect(() => {
-    if (profile) {
-      setForm(f => ({
-        ...f,
-        full_name: profile.full_name || '',
-        org_name: profile.org_name || '',
-        phone: profile.phone || '',
-        payment_phone: profile.payment_phone || '',
-        payment_bank: profile.payment_bank || '',
-        payment_ci: profile.payment_ci || '',
-        email_notifications: profile.email_notifications ?? true,
-      }))
-    }
+    if (profile) setForm(f => ({ ...f, full_name: profile.full_name||'', org_name: profile.org_name||'', phone: profile.phone||'', payment_phone: profile.payment_phone||'', payment_bank: profile.payment_bank||'', payment_ci: profile.payment_ci||'', email_notifications: profile.email_notifications ?? true }))
   }, [profile])
 
-  const set = (field) => (e) => setForm(f => ({ ...f, [field]: e.target.value }))
+  const set = f => e => setForm(v => ({ ...v, [f]: e.target.value }))
+  const setSelect = f => v => setForm(v2 => ({ ...v2, [f]: v }))
 
   const handleSave = async () => {
     setSaving(true)
-    const { error } = await supabase
-      .from('organizer_profiles')
-      .upsert({ id: user.id, ...form }, { onConflict: 'id' })
-
-    if (error) {
-      toast.error('Error al guardar los cambios')
-    } else {
-      toast.success('✅ Perfil actualizado')
-      fetchProfile(user.id)
-    }
+    const { error } = await supabase.from('organizer_profiles').upsert({ id: user.id, ...form }, { onConflict: 'id' })
+    if (error) toast.error('Error al guardar los cambios')
+    else { toast.success('✅ Perfil actualizado'); fetchProfile(user.id) }
     setSaving(false)
   }
 
-  const BANKS = [
-    'Banco de Venezuela', 'Banesco', 'Mercantil', 'BBVA Provincial',
-    'Bicentenario', 'BNC', 'Banco Exterior', 'Banplus', 'Sofitasa', 'Otro'
-  ]
-
   return (
-    <div className="page-wrapper animate-fade-in">
-      <div className="page-header">
-        <h1 className="page-title">Configuración</h1>
-        <p className="page-subtitle">Gestiona tu perfil y preferencias</p>
+    <div className="p-8 space-y-6 animate-fade-in max-w-2xl">
+      <div>
+        <h1 className="text-2xl font-bold">Configuración</h1>
+        <p className="text-sm text-muted-foreground">Gestiona tu perfil y preferencias</p>
       </div>
 
-      <div style={{ maxWidth: 700 }}>
-
-        {/* Profile */}
-        <div className="settings-section mb-6">
-          <div className="settings-section-header">
-            <User size={14} style={{ display: 'inline', marginRight: 8 }} />
-            Información personal
-          </div>
-          <div className="settings-section-body">
-            <div className="grid-2">
-              <div className="form-group">
-                <label className="form-label">Nombre completo</label>
-                <input type="text" className="form-input" value={form.full_name} onChange={set('full_name')} placeholder="Juan Pérez" />
-              </div>
-              <div className="form-group">
-                <label className="form-label">Organización</label>
-                <input type="text" className="form-input" value={form.org_name} onChange={set('org_name')} placeholder="Mi Empresa" />
-              </div>
+      {/* Profile */}
+      <Card>
+        <CardHeader>
+          <CardTitle className="text-base">Información Personal</CardTitle>
+          <CardDescription>Tu nombre y datos de contacto</CardDescription>
+        </CardHeader>
+        <CardContent className="space-y-4">
+          <div className="grid grid-cols-2 gap-4">
+            <div className="space-y-2">
+              <Label>Nombre completo</Label>
+              <Input placeholder="Juan Pérez" value={form.full_name} onChange={set('full_name')} />
             </div>
-            <div className="form-group">
-              <label className="form-label">Correo electrónico</label>
-              <input type="email" className="form-input" value={user?.email || ''} disabled style={{ opacity: 0.6 }} />
-              <p className="form-hint">El correo no puede modificarse desde aquí</p>
-            </div>
-            <div className="form-group">
-              <label className="form-label">Teléfono</label>
-              <input type="tel" className="form-input" value={form.phone} onChange={set('phone')} placeholder="0412-1234567" />
+            <div className="space-y-2">
+              <Label>Organización</Label>
+              <Input placeholder="Mi Empresa" value={form.org_name} onChange={set('org_name')} />
             </div>
           </div>
-        </div>
-
-        {/* Payment */}
-        <div className="settings-section mb-6">
-          <div className="settings-section-header">
-            <Smartphone size={14} style={{ display: 'inline', marginRight: 8 }} />
-            Datos de Pago Móvil (por defecto)
+          <div className="space-y-2">
+            <Label>Correo electrónico</Label>
+            <Input value={user?.email || ''} disabled className="opacity-60" />
+            <p className="text-xs text-muted-foreground">El correo no puede modificarse desde aquí</p>
           </div>
-          <div className="settings-section-body">
-            <p className="text-muted text-sm mb-6">
-              Estos datos se pre-rellenarán automáticamente al crear nuevos eventos
-            </p>
-            <div className="form-group">
-              <label className="form-label">Teléfono de Pago Móvil</label>
-              <input type="tel" className="form-input" value={form.payment_phone} onChange={set('payment_phone')} placeholder="0412-1234567" />
+          <div className="space-y-2">
+            <Label>Teléfono</Label>
+            <Input type="tel" placeholder="0412-1234567" value={form.phone} onChange={set('phone')} />
+          </div>
+        </CardContent>
+      </Card>
+
+      {/* Payment */}
+      <Card>
+        <CardHeader>
+          <CardTitle className="text-base">Datos de Pago Móvil (por defecto)</CardTitle>
+          <CardDescription>Se pre-rellenarán al crear nuevos eventos</CardDescription>
+        </CardHeader>
+        <CardContent className="space-y-4">
+          <div className="space-y-2">
+            <Label>Teléfono de Pago Móvil</Label>
+            <Input type="tel" placeholder="0412-1234567" value={form.payment_phone} onChange={set('payment_phone')} />
+          </div>
+          <div className="grid grid-cols-2 gap-4">
+            <div className="space-y-2">
+              <Label>Banco</Label>
+              <Select value={form.payment_bank} onValueChange={setSelect('payment_bank')}>
+                <SelectTrigger><SelectValue placeholder="Selecciona un banco" /></SelectTrigger>
+                <SelectContent>{BANKS.map(b => <SelectItem key={b} value={b}>{b}</SelectItem>)}</SelectContent>
+              </Select>
             </div>
-            <div className="grid-2">
-              <div className="form-group">
-                <label className="form-label">Banco</label>
-                <select className="form-select" value={form.payment_bank} onChange={set('payment_bank')}>
-                  <option value="">Selecciona un banco</option>
-                  {BANKS.map(b => <option key={b} value={b}>{b}</option>)}
-                </select>
-              </div>
-              <div className="form-group">
-                <label className="form-label">Cédula / RIF</label>
-                <input type="text" className="form-input" value={form.payment_ci} onChange={set('payment_ci')} placeholder="V-12345678" />
-              </div>
+            <div className="space-y-2">
+              <Label>Cédula / RIF</Label>
+              <Input placeholder="V-12345678" value={form.payment_ci} onChange={set('payment_ci')} />
             </div>
           </div>
-        </div>
+        </CardContent>
+      </Card>
 
-        {/* Notifications */}
-        <div className="settings-section mb-8">
-          <div className="settings-section-header">
-            <Bell size={14} style={{ display: 'inline', marginRight: 8 }} />
-            Notificaciones
-          </div>
-          <div className="settings-section-body">
-            <label style={{ display: 'flex', alignItems: 'center', gap: 12, cursor: 'pointer' }}>
-              <input
-                type="checkbox"
-                checked={form.email_notifications}
-                onChange={e => setForm(f => ({ ...f, email_notifications: e.target.checked }))}
-                style={{ width: 18, height: 18, accentColor: 'var(--color-primary)', cursor: 'pointer' }}
-              />
-              <div>
-                <div style={{ fontWeight: 600, fontSize: '0.9rem' }}>Notificaciones por email</div>
-                <div className="text-muted text-sm">Recibe un email cuando llegue un nuevo pago para revisar</div>
-              </div>
-            </label>
-          </div>
-        </div>
+      {/* Notifications */}
+      <Card>
+        <CardHeader>
+          <CardTitle className="text-base">Notificaciones</CardTitle>
+        </CardHeader>
+        <CardContent>
+          <label className="flex items-center gap-3 cursor-pointer">
+            <input
+              type="checkbox"
+              checked={form.email_notifications}
+              onChange={e => setForm(f => ({ ...f, email_notifications: e.target.checked }))}
+              className="h-4 w-4 accent-foreground cursor-pointer"
+            />
+            <div>
+              <div className="text-sm font-medium">Notificaciones por email</div>
+              <div className="text-xs text-muted-foreground">Recibe un email cuando llegue un nuevo pago para revisar</div>
+            </div>
+          </label>
+        </CardContent>
+      </Card>
 
-        <button onClick={handleSave} className="btn btn-primary btn-lg" disabled={saving}>
-          {saving ? <><div className="btn-spinner" /> Guardando...</> : <><Save size={16} /> Guardar cambios</>}
-        </button>
+      <Button onClick={handleSave} disabled={saving} size="lg">
+        {saving
+          ? <div className="h-4 w-4 border-2 border-primary-foreground/30 border-t-primary-foreground rounded-full animate-spin" />
+          : <><Save className="h-4 w-4" /> Guardar cambios</>}
+      </Button>
 
-        {/* Account info */}
-        <div className="card mt-8" style={{ borderColor: 'rgba(239,68,68,0.2)' }}>
-          <h4 style={{ fontWeight: 700, color: 'var(--color-danger)', marginBottom: 8 }}>Zona de peligro</h4>
-          <p className="text-muted text-sm mb-4">Estas acciones son irreversibles. Procede con precaución.</p>
-          <div style={{ display: 'flex', gap: 12 }}>
-            <button className="btn btn-danger btn-sm" onClick={() => toast.error('Contacta soporte para eliminar tu cuenta')}>
-              Eliminar cuenta
-            </button>
-          </div>
-        </div>
-      </div>
+      {/* Danger zone */}
+      <Card className="border-destructive/30">
+        <CardHeader>
+          <CardTitle className="text-base text-destructive">Zona de peligro</CardTitle>
+          <CardDescription>Estas acciones son irreversibles</CardDescription>
+        </CardHeader>
+        <CardContent>
+          <Button variant="destructive" size="sm" onClick={() => toast.error('Contacta soporte para eliminar tu cuenta')}>
+            Eliminar cuenta
+          </Button>
+        </CardContent>
+      </Card>
     </div>
   )
 }

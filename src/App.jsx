@@ -13,19 +13,26 @@ import BuyTicket from './pages/BuyTicket'
 import Settings from './pages/Settings'
 import './index.css'
 
-function PrivateRoute({ children }) {
-  const { user, loading } = useAuth()
-  if (loading) return (
-    <div style={{ minHeight: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-      <div className="btn-spinner" style={{ width: 40, height: 40, borderWidth: 3 }} />
+// Apply dark class to root element for shadcn/ui dark mode
+document.documentElement.classList.add('dark')
+
+function Spinner() {
+  return (
+    <div className="min-h-screen bg-background flex items-center justify-center">
+      <div className="h-10 w-10 border-2 border-border border-t-foreground rounded-full animate-spin" />
     </div>
   )
+}
+
+function PrivateRoute({ children }) {
+  const { user, loading } = useAuth()
+  if (loading) return <Spinner />
   return user ? children : <Navigate to="/login" replace />
 }
 
 function PublicRoute({ children }) {
   const { user, loading } = useAuth()
-  if (loading) return null
+  if (loading) return <Spinner />
   return !user ? children : <Navigate to="/dashboard" replace />
 }
 
@@ -33,7 +40,7 @@ function AppRoutes() {
   return (
     <Routes>
       <Route path="/" element={<Navigate to="/dashboard" replace />} />
-      <Route path="/login" element={<PublicRoute><Login /></PublicRoute>} />
+      <Route path="/login"    element={<PublicRoute><Login /></PublicRoute>} />
       <Route path="/register" element={<PublicRoute><Register /></PublicRoute>} />
 
       {/* Public ticket purchase page */}
@@ -41,11 +48,11 @@ function AppRoutes() {
 
       {/* Protected routes */}
       <Route element={<PrivateRoute><AppLayout /></PrivateRoute>}>
-        <Route path="/dashboard" element={<Dashboard />} />
-        <Route path="/eventos" element={<Events />} />
+        <Route path="/dashboard"     element={<Dashboard />} />
+        <Route path="/eventos"       element={<Events />} />
         <Route path="/eventos/crear" element={<EventCreate />} />
-        <Route path="/eventos/:id" element={<EventDetail />} />
-        <Route path="/ordenes" element={<OrderVerification />} />
+        <Route path="/eventos/:id"   element={<EventDetail />} />
+        <Route path="/ordenes"       element={<OrderVerification />} />
         <Route path="/configuracion" element={<Settings />} />
       </Route>
     </Routes>
@@ -61,15 +68,15 @@ export default function App() {
           position="top-right"
           toastOptions={{
             style: {
-              background: 'var(--color-bg-elevated)',
-              color: 'var(--color-text)',
-              border: '1px solid var(--color-border)',
-              borderRadius: 'var(--radius-md)',
-              fontFamily: 'var(--font-sans)',
-              fontSize: '0.88rem',
+              background: 'hsl(240 10% 3.9%)',
+              color: 'hsl(0 0% 98%)',
+              border: '1px solid hsl(240 3.7% 15.9%)',
+              borderRadius: '0.5rem',
+              fontFamily: 'Inter, system-ui, sans-serif',
+              fontSize: '0.875rem',
             },
-            success: { iconTheme: { primary: 'var(--color-success)', secondary: 'var(--color-bg-card)' } },
-            error:   { iconTheme: { primary: 'var(--color-danger)',  secondary: 'var(--color-bg-card)' } },
+            success: { iconTheme: { primary: '#22c55e', secondary: 'hsl(240 10% 3.9%)' } },
+            error:   { iconTheme: { primary: '#ef4444', secondary: 'hsl(240 10% 3.9%)' } },
           }}
         />
       </BrowserRouter>
