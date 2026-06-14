@@ -34,8 +34,8 @@ export default function Sidebar() {
     <aside className="fixed top-0 left-0 h-screen w-64 border-r bg-card flex flex-col z-50">
       {/* Logo */}
       <div className="flex items-center gap-3 px-6 py-5 border-b">
-        <img src={logo} alt="TickerApp" className="h-8 w-auto object-contain" />
-        <span className="text-lg font-bold tracking-tight">TickerApp</span>
+        <img src={logo} alt="TicketShow" className="h-8 w-auto object-contain" />
+        <span className="text-lg font-bold tracking-tight">TicketShow</span>
       </div>
 
       {/* Nav */}

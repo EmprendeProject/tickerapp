@@ -38,8 +38,8 @@ export default function Login() {
       <div className="relative z-10 w-full max-w-sm animate-fade-in">
         {/* Logo */}
         <div className="flex flex-col items-center mb-8">
-          <img src={logo} alt="TickerApp" className="h-16 w-auto mb-4 object-contain" />
-          <h1 className="text-2xl font-bold">TickerApp</h1>
+          <img src={logo} alt="TicketShow" className="h-16 w-auto mb-4 object-contain" />
+          <h1 className="text-2xl font-bold">TicketShow</h1>
           <p className="text-sm text-muted-foreground mt-1">Gestión de eventos y tickets</p>
         </div>
 

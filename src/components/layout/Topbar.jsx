@@ -13,7 +13,7 @@ const pageTitles = {
 
 export default function Topbar() {
   const { pathname } = useLocation()
-  const title = pageTitles[pathname] || 'TickerApp'
+  const title = pageTitles[pathname] || 'TicketShow'
 
   return (
     <header className="sticky top-0 z-40 bg-background/80 backdrop-blur-sm border-b">

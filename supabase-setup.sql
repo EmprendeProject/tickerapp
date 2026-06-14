@@ -1,5 +1,5 @@
 -- ============================================================
--- TickerApp — Supabase SQL Setup
+-- TicketShow — Supabase SQL Setup
 -- Ejecutar en: Supabase Dashboard > SQL Editor
 -- ============================================================
 

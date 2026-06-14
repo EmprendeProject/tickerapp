@@ -30,7 +30,7 @@ serve(async (req) => {
         Authorization: `Bearer ${RESEND_API_KEY}`,
       },
       body: JSON.stringify({
-        from: 'TickerApp <tickets@tu-dominio.com>', // ACTUALIZAR CON EL DOMINIO VERIFICADO EN RESEND
+        from: 'TicketShow <tickets@tu-dominio.com>', // ACTUALIZAR CON EL DOMINIO VERIFICADO EN RESEND
         to: [email],
         subject: subject,
         html: html,

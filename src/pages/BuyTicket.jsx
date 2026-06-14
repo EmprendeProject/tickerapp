@@ -156,7 +156,7 @@ export default function BuyTicket() {
         <div className="max-w-2xl mx-auto px-4 py-4 flex items-center justify-between">
           <div className="flex items-center gap-2">
             <Ticket className="h-5 w-5" />
-            <span className="font-bold">TickerApp</span>
+            <span className="font-bold">TicketShow</span>
           </div>
           <Badge variant="outline">Compra segura</Badge>
         </div>
