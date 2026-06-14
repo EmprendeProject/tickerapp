@@ -23,6 +23,7 @@ export default function BuyTicket() {
   const [event, setEvent] = useState(null)
   const [ticketTypes, setTicketTypes] = useState([])
   const [loading, setLoading] = useState(true)
+  const [bcvRate, setBcvRate] = useState(null)
   const [step, setStep] = useState(0)
   const [submitting, setSubmitting] = useState(false)
   const [orders, setOrders] = useState([])          // array of created orders
@@ -36,7 +37,13 @@ export default function BuyTicket() {
   const [proofFile, setProofFile] = useState(null)
   const [proofPreview, setProofPreview] = useState(null)
 
-  useEffect(() => { loadEvent() }, [eventId])
+  useEffect(() => { 
+    loadEvent()
+    fetch('https://ve.dolarapi.com/v1/dolares/oficial')
+      .then(res => res.json())
+      .then(data => { if (data?.promedio) setBcvRate(data.promedio) })
+      .catch(err => console.error('Error fetching BCV rate:', err))
+  }, [eventId])
 
   const loadEvent = async () => {
     setLoading(true)
@@ -279,9 +286,16 @@ export default function BuyTicket() {
                         </div>
                       </div>
                       <div className="flex items-center gap-4">
-                        <span className="font-bold text-green-500 text-lg">
-                          {formatCurrency(tt.price, tt.currency)}
-                        </span>
+                        <div className="flex flex-col items-end sm:items-center">
+                          <span className="font-bold text-green-500 text-lg leading-none">
+                            {formatCurrency(tt.price, tt.currency)}
+                          </span>
+                          {tt.currency === 'USD' && bcvRate && (
+                            <span className="text-xs text-muted-foreground mt-1">
+                              ~ {formatCurrency(tt.price * bcvRate, 'VES')}
+                            </span>
+                          )}
+                        </div>
                         {!isSoldOut && (
                           <div className="flex items-center gap-2">
                             <Button
@@ -325,9 +339,16 @@ export default function BuyTicket() {
                     </div>
                   ))}
                   <Separator className="my-2" />
-                  <div className="flex justify-between font-bold">
+                  <div className="flex justify-between font-bold items-end">
                     <span>{totalTickets} entrada{totalTickets !== 1 ? 's' : ''}</span>
-                    <span className="text-green-500 text-lg">{formatCurrency(totalAmount, currency)}</span>
+                    <div className="text-right">
+                      <div className="text-green-500 text-lg leading-none">{formatCurrency(totalAmount, currency)}</div>
+                      {currency === 'USD' && bcvRate && (
+                        <div className="text-xs text-muted-foreground font-normal mt-1">
+                          ~ {formatCurrency(totalAmount * bcvRate, 'VES')}
+                        </div>
+                      )}
+                    </div>
                   </div>
                   <Button className="w-full mt-3" onClick={() => setStep(1)}>
                     Continuar →
@@ -349,7 +370,12 @@ export default function BuyTicket() {
                 </div>
                 <div className="text-right shrink-0 ml-4">
                   <div className="font-bold text-green-500">{formatCurrency(totalAmount, currency)}</div>
-                  <div className="text-xs text-muted-foreground">{totalTickets} entrada{totalTickets !== 1 ? 's' : ''}</div>
+                  {currency === 'USD' && bcvRate && (
+                    <div className="text-xs text-muted-foreground font-normal">
+                      ~ {formatCurrency(totalAmount * bcvRate, 'VES')}
+                    </div>
+                  )}
+                  <div className="text-xs text-muted-foreground mt-1">{totalTickets} entrada{totalTickets !== 1 ? 's' : ''}</div>
                 </div>
               </div>
             </CardHeader>
@@ -389,10 +415,23 @@ export default function BuyTicket() {
             </CardHeader>
             <CardContent className="space-y-5">
               {/* Amount */}
-              <div className="text-center p-4 rounded-lg bg-muted/50 border space-y-1">
+              <div className="text-center p-4 rounded-lg bg-muted/50 border space-y-2">
                 <div className="text-xs text-muted-foreground">Monto total a pagar</div>
-                <div className="text-3xl font-bold text-green-500">{formatCurrency(totalAmount, currency)}</div>
-                <div className="text-xs text-muted-foreground">
+                <div>
+                  <div className="text-3xl font-bold text-green-500 leading-none">{formatCurrency(totalAmount, currency)}</div>
+                  {currency === 'USD' && bcvRate && (
+                    <div className="mt-4 p-3 bg-muted rounded-lg border">
+                      <div className="text-xs text-muted-foreground uppercase tracking-wider font-semibold mb-1">Debes pagar:</div>
+                      <div className="text-2xl font-bold text-foreground">
+                        {formatCurrency(totalAmount * bcvRate, 'VES')}
+                      </div>
+                      <div className="text-xs text-muted-foreground mt-1 opacity-80">
+                        Tasa BCV: {formatCurrency(bcvRate, 'VES')}
+                      </div>
+                    </div>
+                  )}
+                </div>
+                <div className="text-xs text-muted-foreground pt-1">
                   {cartItems.map(i => `${i.qty}× ${i.name}`).join(' · ')}
                 </div>
               </div>
@@ -426,7 +465,7 @@ export default function BuyTicket() {
 
               {/* Upload */}
               <div className="space-y-2">
-                <Label>Comprobante de pago *</Label>
+                <Label>Sube el comprobante de pago *</Label>
                 {proofPreview ? (
                   <div className="text-center space-y-2">
                     <img src={proofPreview} alt="comprobante" className="max-h-48 rounded-lg mx-auto border" />
