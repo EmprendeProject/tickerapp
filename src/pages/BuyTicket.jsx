@@ -110,7 +110,7 @@ export default function BuyTicket() {
       for (const item of cartItems) {
         for (let i = 0; i < item.qty; i++) {
           const qrToken = generateQRToken()
-          const { data: newOrder, error: orderErr } = await supabase.from('orders').insert({
+          const newOrderData = {
             event_id: eventId,
             ticket_type_id: item.id,
             buyer_name: form.buyer_name,
@@ -121,9 +121,21 @@ export default function BuyTicket() {
             status: 'pending',
             payment_proof_url: publicUrl,
             qr_code: qrToken,
-          }).select().single()
-          if (orderErr) throw new Error('Error al registrar la orden')
-          createdOrders.push({ ...newOrder, ticket_type: item })
+          }
+
+          const { error: orderErr } = await supabase.from('orders').insert(newOrderData)
+          
+          if (orderErr) {
+            console.error('Insert Error:', orderErr)
+            throw new Error(`Error al registrar la orden: ${orderErr.message}`)
+          }
+          
+          createdOrders.push({ 
+            ...newOrderData, 
+            id: 'temp-' + qrToken,
+            created_at: new Date().toISOString(),
+            ticket_type: item 
+          })
         }
       }
       setOrders(createdOrders)
