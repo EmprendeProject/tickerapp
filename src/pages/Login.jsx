@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { Link, useNavigate } from 'react-router-dom'
+import { Link, useNavigate, useLocation } from 'react-router-dom'
 import { Ticket, Eye, EyeOff, ArrowRight } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
@@ -16,6 +16,7 @@ export default function Login() {
   const [loading, setLoading] = useState(false)
   const { signIn } = useAuth()
   const navigate = useNavigate()
+  const location = useLocation()
 
   const handleSubmit = async (e) => {
     e.preventDefault()
@@ -26,7 +27,10 @@ export default function Login() {
       toast.error('Credenciales incorrectas. Verifica tu correo y contraseña.')
     } else {
       toast.success('¡Bienvenido de vuelta!')
-      navigate('/dashboard')
+      const from = location.state?.from
+        ? location.state.from.pathname + location.state.from.search
+        : '/dashboard'
+      navigate(from)
     }
   }
 

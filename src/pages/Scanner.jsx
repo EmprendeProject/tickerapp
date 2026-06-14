@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from 'react'
+import { useSearchParams } from 'react-router-dom'
 import { Html5Qrcode } from 'html5-qrcode'
 import { supabase } from '@/lib/supabase'
 import { CheckCircle, XCircle, AlertCircle, Camera, ScanLine, RotateCcw, Loader2 } from 'lucide-react'
@@ -21,6 +22,7 @@ function extractToken(text) {
 }
 
 export default function Scanner() {
+  const [searchParams, setSearchParams] = useSearchParams()
   const [scannerState, setScannerState] = useState('idle') // idle | scanning | loading | result
   const [result, setResult]   = useState(null)  // { ok, reason, order }
   const [history, setHistory] = useState([])    // list of recent scans
@@ -76,6 +78,17 @@ export default function Scanner() {
     setResult({ ok: true, order })
     setScannerState('result')
   }
+
+  // Auto-process QR from URL if present
+  useEffect(() => {
+    const qrParam = searchParams.get('qr')
+    if (qrParam) {
+      searchParams.delete('qr')
+      setSearchParams(searchParams, { replace: true })
+      onScanSuccess(qrParam)
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [])
 
   // Initialize scanner when state becomes 'scanning'
   useEffect(() => {
