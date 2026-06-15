@@ -8,7 +8,7 @@ import { Badge } from '@/components/ui/badge'
 import { Progress } from '@/components/ui/progress'
 import { supabase } from '@/lib/supabase'
 import { useAuth } from '@/contexts/AuthContext'
-import { formatCurrency } from '@/lib/utils'
+import { formatCurrency, formatEventDate } from '@/lib/utils'
 import toast from 'react-hot-toast'
 import { format } from 'date-fns'
 import { es } from 'date-fns/locale'
@@ -137,7 +137,7 @@ export default function Events() {
                     <div className="space-y-1">
                       <div className="flex items-center gap-2 text-xs text-muted-foreground">
                         <Calendar className="h-3 w-3 shrink-0" />
-                        {format(new Date(event.date), "EEEE dd 'de' MMMM, HH:mm", { locale: es })}
+                        {formatEventDate(event.date, event.end_date)}
                       </div>
                       {event.location && (
                         <div className="flex items-center gap-2 text-xs text-muted-foreground">

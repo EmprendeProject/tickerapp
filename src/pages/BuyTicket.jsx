@@ -10,7 +10,7 @@ import { Badge } from '@/components/ui/badge'
 import { Separator } from '@/components/ui/separator'
 import { Progress } from '@/components/ui/progress'
 import { supabase } from '@/lib/supabase'
-import { formatCurrency, generateQRToken, buildQRUrl } from '@/lib/utils'
+import { formatCurrency, generateQRToken, buildQRUrl, formatEventDate } from '@/lib/utils'
 import { format } from 'date-fns'
 import { es } from 'date-fns/locale'
 import toast from 'react-hot-toast'
@@ -231,10 +231,7 @@ export default function BuyTicket() {
               <div>
                 <h1 className="text-xl font-bold mb-2">{event.name}</h1>
                 <div className="space-y-1">
-                  <div className="flex items-center gap-2 text-sm text-muted-foreground">
-                    <Calendar className="h-4 w-4" />
-                    {format(new Date(event.date), "EEEE dd 'de' MMMM yyyy, HH:mm", { locale: es })}
-                  </div>
+                  <div className="flex items-center gap-2 mt-4"><Calendar className="h-5 w-5 text-muted-foreground" />{formatEventDate(event.date, event.end_date)}</div>
                   {event.location && (
                     <div className="flex items-center gap-2 text-sm text-muted-foreground">
                       <MapPin className="h-4 w-4" /> {event.location}

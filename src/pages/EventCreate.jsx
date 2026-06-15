@@ -26,7 +26,7 @@ export default function EventCreate() {
   const [step, setStep] = useState(0)
 
   const [event, setEvent] = useState({
-    name: '', description: '', date: '', location: '', banner_url: '', banner_file: null,
+    name: '', description: '', date: '', end_date: '', location: '', banner_url: '', banner_file: null,
     payment_phone: '', payment_bank: '', payment_ci: '',
   })
 
@@ -148,13 +148,17 @@ export default function EventCreate() {
                 </div>
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                   <div className="space-y-2">
-                    <Label htmlFor="ev-date">Fecha y hora *</Label>
+                    <Label htmlFor="ev-date">Fecha y hora de inicio *</Label>
                     <Input id="ev-date" type="datetime-local" value={event.date} onChange={setField('date')} required />
                   </div>
                   <div className="space-y-2">
-                    <Label htmlFor="ev-location">Lugar</Label>
-                    <Input id="ev-location" placeholder="Teatro Municipal, Caracas" value={event.location} onChange={setField('location')} />
+                    <Label htmlFor="ev-end-date">Fecha y hora de fin (Opcional)</Label>
+                    <Input id="ev-end-date" type="datetime-local" value={event.end_date || ''} onChange={setField('end_date')} />
                   </div>
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="ev-location">Lugar</Label>
+                  <Input id="ev-location" placeholder="Teatro Municipal, Caracas" value={event.location} onChange={setField('location')} />
                 </div>
                 <div className="space-y-2">
                   <Label htmlFor="ev-banner">Banner del Evento (opcional)</Label>

@@ -9,7 +9,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table'
 import { Separator } from '@/components/ui/separator'
 import { supabase } from '@/lib/supabase'
-import { formatCurrency, getStatusLabel } from '@/lib/utils'
+import { formatCurrency, getStatusLabel, formatEventDate } from '@/lib/utils'
 import { format } from 'date-fns'
 import { es } from 'date-fns/locale'
 import toast from 'react-hot-toast'
@@ -88,7 +88,7 @@ export default function EventDetail() {
         </div>
         <h1 className="text-3xl font-bold mb-3">{event.name}</h1>
         <div className="flex gap-6 text-sm text-muted-foreground flex-wrap">
-          <div className="flex items-center gap-2"><Calendar className="h-4 w-4" />{format(new Date(event.date), "EEEE dd 'de' MMMM yyyy, HH:mm", { locale: es })}</div>
+          <div className="flex items-center gap-2"><Calendar className="h-4 w-4" />{formatEventDate(event.date, event.end_date)}</div>
           {event.location && <div className="flex items-center gap-2"><MapPin className="h-4 w-4" />{event.location}</div>}
         </div>
         {event.description && <p className="mt-3 text-sm text-muted-foreground max-w-xl">{event.description}</p>}

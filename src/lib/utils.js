@@ -1,5 +1,7 @@
 // Base URL for the app — reads from env or falls back to the Vercel domain
 const APP_BASE_URL = import.meta.env.VITE_APP_URL || 'https://tickerapp.vercel.app'
+import { format, isSameDay } from 'date-fns'
+import { es } from 'date-fns/locale'
 
 export const generateQRToken = () => {
   // Generate a unique token for the ticket QR
@@ -29,6 +31,23 @@ export const formatDate = (dateString) => {
     hour: '2-digit',
     minute: '2-digit',
   })
+}
+
+export const formatEventDate = (startDate, endDate) => {
+  if (!startDate) return ''
+  const start = new Date(startDate)
+  
+  if (!endDate) {
+    return format(start, "EEEE dd 'de' MMMM yyyy, HH:mm", { locale: es })
+  }
+  
+  const end = new Date(endDate)
+  
+  if (isSameDay(start, end)) {
+    return `${format(start, "EEEE dd 'de' MMMM yyyy, HH:mm", { locale: es })} hasta las ${format(end, "HH:mm")}`
+  }
+  
+  return `Del ${format(start, "dd 'de' MMM", { locale: es })} al ${format(end, "dd 'de' MMM yyyy", { locale: es })}`
 }
 
 export const getStatusLabel = (status) => {

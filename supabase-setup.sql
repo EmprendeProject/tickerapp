@@ -57,6 +57,7 @@ CREATE TABLE IF NOT EXISTS events (
   name            TEXT NOT NULL,
   description     TEXT,
   date            TIMESTAMPTZ NOT NULL,
+  end_date        TIMESTAMPTZ,
   location        TEXT,
   banner_url      TEXT,
   payment_phone   TEXT NOT NULL,
