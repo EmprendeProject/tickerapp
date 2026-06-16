@@ -17,6 +17,7 @@ import toast from 'react-hot-toast'
 import jsPDF from 'jspdf'
 import html2canvas from 'html2canvas'
 import { buildOrganizerNotificationEmail } from '@/lib/emailTemplates'
+import { ThemeToggle } from '@/components/ThemeToggle'
 
 export default function BuyTicket() {
   const { eventId } = useParams()
@@ -241,9 +242,12 @@ export default function BuyTicket() {
         <div className="max-w-2xl mx-auto px-4 py-4 flex items-center justify-between">
           <div className="flex items-center gap-2">
             <Ticket className="h-5 w-5" />
-            <span className="font-bold">TicketShow</span>
+            <span className="font-bold tracking-tight">TicketShow</span>
           </div>
-          <Badge variant="outline">Compra segura</Badge>
+          <div className="flex items-center gap-3">
+            <Badge variant="outline" className="hidden sm:inline-flex">Compra segura</Badge>
+            <ThemeToggle className="h-8 w-8 text-muted-foreground" />
+          </div>
         </div>
       </div>
 
@@ -306,9 +310,11 @@ export default function BuyTicket() {
                     >
                       <div className="flex-1">
                         <div className="font-semibold">{tt.name}</div>
-                        <div className="text-xs text-muted-foreground mt-0.5">
-                          {isSoldOut ? '🚫 Agotado' : `${available} disponible${available !== 1 ? 's' : ''}`}
-                        </div>
+                        {isSoldOut && (
+                          <div className="text-xs text-destructive font-medium mt-0.5">
+                            🚫 Agotado
+                          </div>
+                        )}
                       </div>
                       <div className="flex items-center gap-4">
                         <div className="flex flex-col items-end sm:items-center">

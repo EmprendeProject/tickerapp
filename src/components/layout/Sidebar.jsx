@@ -10,6 +10,7 @@ import { Separator } from '@/components/ui/separator'
 import { cn } from '@/lib/cn'
 import logo from '@/assets/logo.png'
 import toast from 'react-hot-toast'
+import { ThemeToggle } from '@/components/ThemeToggle'
 
 const navItems = [
   { label: 'Dashboard',       to: '/dashboard', icon: LayoutDashboard },
@@ -109,15 +110,18 @@ export default function Sidebar({ isOpen, onClose }) {
             <p className="text-sm font-medium truncate">{displayName}</p>
             <p className="text-xs text-muted-foreground">Organizador</p>
           </div>
-          <Button
-            variant="ghost"
-            size="icon"
-            className="h-7 w-7 shrink-0"
-            onClick={handleSignOut}
-            title="Cerrar sesión"
-          >
-            <LogOut className="h-4 w-4" />
-          </Button>
+          <div className="flex shrink-0">
+            <ThemeToggle className="h-7 w-7 text-muted-foreground mr-1" />
+            <Button
+              variant="ghost"
+              size="icon"
+              className="h-7 w-7 shrink-0 text-muted-foreground hover:text-destructive"
+              onClick={handleSignOut}
+              title="Cerrar sesión"
+            >
+              <LogOut className="h-4 w-4" />
+            </Button>
+          </div>
         </div>
       </div>
     </aside>

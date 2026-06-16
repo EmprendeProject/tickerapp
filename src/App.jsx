@@ -1,6 +1,7 @@
 import { BrowserRouter, Routes, Route, Navigate, useLocation } from 'react-router-dom'
 import { Toaster } from 'react-hot-toast'
 import { AuthProvider, useAuth } from './contexts/AuthContext'
+import { ThemeProvider } from './contexts/ThemeContext'
 import AppLayout from './components/layout/AppLayout'
 import Login from './pages/Login'
 import Register from './pages/Register'
@@ -14,8 +15,7 @@ import Settings from './pages/Settings'
 import Scanner from './pages/Scanner'
 import './index.css'
 
-// Apply dark class to root element for shadcn/ui dark mode
-document.documentElement.classList.add('dark')
+// Theme handled by ThemeProvider
 
 function Spinner() {
   return (
@@ -65,24 +65,26 @@ function AppRoutes() {
 export default function App() {
   return (
     <AuthProvider>
-      <BrowserRouter>
+      <ThemeProvider>
+        <BrowserRouter>
         <AppRoutes />
         <Toaster
           position="top-right"
           toastOptions={{
             style: {
-              background: 'hsl(240 10% 3.9%)',
-              color: 'hsl(0 0% 98%)',
-              border: '1px solid hsl(240 3.7% 15.9%)',
+              background: 'hsl(var(--background))',
+              color: 'hsl(var(--foreground))',
+              border: '1px solid hsl(var(--border))',
               borderRadius: '0.5rem',
               fontFamily: 'Inter, system-ui, sans-serif',
               fontSize: '0.875rem',
             },
-            success: { iconTheme: { primary: '#22c55e', secondary: 'hsl(240 10% 3.9%)' } },
-            error:   { iconTheme: { primary: '#ef4444', secondary: 'hsl(240 10% 3.9%)' } },
+            success: { iconTheme: { primary: '#22c55e', secondary: 'hsl(var(--background))' } },
+            error:   { iconTheme: { primary: '#ef4444', secondary: 'hsl(var(--background))' } },
           }}
         />
-      </BrowserRouter>
+        </BrowserRouter>
+      </ThemeProvider>
     </AuthProvider>
   )
 }
