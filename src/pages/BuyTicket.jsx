@@ -29,9 +29,12 @@ export default function BuyTicket() {
   const [orders, setOrders] = useState([])          // array of created orders
   const ticketsRef = useRef(null)
 
-  // cart: { [ticketTypeId]: quantity }
   const [cart, setCart] = useState({})
   const [organizerEmail, setOrganizerEmail] = useState('')
+  
+  const [discountCodeText, setDiscountCodeText] = useState('')
+  const [appliedDiscount, setAppliedDiscount] = useState(null)
+  const [applyingDiscount, setApplyingDiscount] = useState(false)
 
   const [form, setForm] = useState({ buyer_name: '', buyer_email: '', buyer_phone: '' })
   const [proofFile, setProofFile] = useState(null)
@@ -90,8 +93,31 @@ export default function BuyTicket() {
   }))
 
   const totalTickets = cartItems.reduce((s, i) => s + i.qty, 0)
-  const totalAmount  = cartItems.reduce((s, i) => s + i.subtotal, 0)
+  const baseTotalAmount = cartItems.reduce((s, i) => s + i.subtotal, 0)
+  const discountAmount = appliedDiscount ? baseTotalAmount * (appliedDiscount.percentage / 100) : 0
+  const totalAmount  = baseTotalAmount - discountAmount
   const currency     = cartItems[0]?.currency || 'USD'
+
+  const handleApplyDiscount = async () => {
+    if (!discountCodeText.trim()) return
+    setApplyingDiscount(true)
+    const { data, error } = await supabase
+      .from('discount_codes')
+      .select('*')
+      .eq('event_id', eventId)
+      .eq('code', discountCodeText.toUpperCase().trim())
+      .eq('active', true)
+      .single()
+    
+    if (error || !data) {
+      toast.error('Código inválido o expirado')
+      setAppliedDiscount(null)
+    } else {
+      setAppliedDiscount(data)
+      toast.success(`¡Descuento del ${data.percentage}% aplicado!`)
+    }
+    setApplyingDiscount(false)
+  }
 
   const handleFileChange = e => {
     const file = e.target.files[0]
@@ -117,6 +143,7 @@ export default function BuyTicket() {
       for (const item of cartItems) {
         for (let i = 0; i < item.qty; i++) {
           const qrToken = generateQRToken()
+          const discountedPrice = appliedDiscount ? item.price * (1 - appliedDiscount.percentage / 100) : item.price
           const newOrderData = {
             event_id: eventId,
             ticket_type_id: item.id,
@@ -124,10 +151,11 @@ export default function BuyTicket() {
             buyer_email: form.buyer_email,
             buyer_phone: form.buyer_phone,
             quantity: 1,
-            total_amount: item.price,
+            total_amount: discountedPrice,
             status: 'pending',
             payment_proof_url: publicUrl,
             qr_code: qrToken,
+            discount_code: appliedDiscount?.code || null,
           }
 
           const { error: orderErr } = await supabase.from('orders').insert(newOrderData)
@@ -332,10 +360,44 @@ export default function BuyTicket() {
                   {cartItems.map(item => (
                     <div key={item.id} className="flex justify-between text-sm">
                       <span className="text-muted-foreground">{item.qty}× {item.name}</span>
-                      <span className="font-medium">{formatCurrency(item.subtotal, item.currency)}</span>
+                      <span className={appliedDiscount ? "line-through text-muted-foreground opacity-60" : "font-medium"}>
+                        {formatCurrency(item.subtotal, item.currency)}
+                      </span>
                     </div>
                   ))}
+
+                  <div className="pt-2 pb-1">
+                    {appliedDiscount ? (
+                      <div className="flex items-center justify-between bg-green-500/10 border border-green-500/20 text-green-600 px-3 py-2 rounded-md text-sm">
+                        <span>Código <b className="font-mono">{appliedDiscount.code}</b> (-{appliedDiscount.percentage}%)</span>
+                        <Button variant="ghost" size="sm" className="h-6 w-6 p-0 hover:bg-green-500/20 text-green-700 rounded-full" onClick={() => setAppliedDiscount(null)}>
+                          <Minus className="h-3.5 w-3.5" />
+                        </Button>
+                      </div>
+                    ) : (
+                      <div className="flex gap-2">
+                        <Input 
+                          placeholder="Código de descuento (Opcional)" 
+                          className="h-9 text-sm" 
+                          value={discountCodeText} 
+                          onChange={e => setDiscountCodeText(e.target.value.toUpperCase())} 
+                        />
+                        <Button size="sm" className="h-9" variant="secondary" onClick={handleApplyDiscount} disabled={applyingDiscount || !discountCodeText.trim()}>
+                          Aplicar
+                        </Button>
+                      </div>
+                    )}
+                  </div>
+
                   <Separator className="my-2" />
+                  
+                  {appliedDiscount && (
+                    <div className="flex justify-between text-sm text-green-500 mb-2 font-medium">
+                      <span>Descuento aplicado</span>
+                      <span>-{formatCurrency(discountAmount, currency)}</span>
+                    </div>
+                  )}
+
                   <div className="flex justify-between font-bold items-end">
                     <span>{totalTickets} entrada{totalTickets !== 1 ? 's' : ''}</span>
                     <div className="text-right">

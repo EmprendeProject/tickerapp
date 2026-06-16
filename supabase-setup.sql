@@ -91,7 +91,19 @@ CREATE TABLE IF NOT EXISTS orders (
   status              TEXT NOT NULL DEFAULT 'pending' CHECK (status IN ('pending','approved','rejected')),
   payment_proof_url   TEXT,
   qr_code             TEXT UNIQUE,
+  discount_code       TEXT,
   created_at          TIMESTAMPTZ DEFAULT NOW()
+);
+
+-- 5. Discount Codes
+CREATE TABLE IF NOT EXISTS discount_codes (
+  id              UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  event_id        UUID REFERENCES events(id) ON DELETE CASCADE NOT NULL,
+  code            TEXT NOT NULL,
+  percentage      NUMERIC(5,2) NOT NULL CHECK (percentage > 0 AND percentage <= 100),
+  active          BOOLEAN DEFAULT TRUE,
+  created_at      TIMESTAMPTZ DEFAULT NOW(),
+  UNIQUE(event_id, code)
 );
 
 -- ============================================================
@@ -102,6 +114,7 @@ ALTER TABLE organizer_profiles ENABLE ROW LEVEL SECURITY;
 ALTER TABLE events              ENABLE ROW LEVEL SECURITY;
 ALTER TABLE ticket_types        ENABLE ROW LEVEL SECURITY;
 ALTER TABLE orders              ENABLE ROW LEVEL SECURITY;
+ALTER TABLE discount_codes      ENABLE ROW LEVEL SECURITY;
 
 -- organizer_profiles: only own row
 CREATE POLICY "Users can manage own profile" ON organizer_profiles
@@ -139,6 +152,15 @@ CREATE POLICY "Organizers update own orders" ON orders
   FOR UPDATE USING (
     auth.uid() = (SELECT organizer_id FROM events WHERE id = event_id)
   );
+
+-- discount_codes: organizer manages, public reads active ones
+CREATE POLICY "Organizers manage discount codes" ON discount_codes
+  FOR ALL USING (
+    auth.uid() = (SELECT organizer_id FROM events WHERE id = event_id)
+  );
+
+CREATE POLICY "Public can read active discount codes" ON discount_codes
+  FOR SELECT USING (active = TRUE);
 
 -- ============================================================
 -- Function: increment sold count

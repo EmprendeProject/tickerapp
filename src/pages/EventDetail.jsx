@@ -1,8 +1,10 @@
 import { useState, useEffect } from 'react'
 import { useParams, Link } from 'react-router-dom'
-import { Calendar, MapPin, ExternalLink, Copy, Download, CheckCircle, XCircle, AlertCircle } from 'lucide-react'
+import { Calendar, MapPin, ExternalLink, Copy, Download, CheckCircle, XCircle, AlertCircle, Tag, Plus, Trash2 } from 'lucide-react'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
+import { Input } from '@/components/ui/input'
+import { Label } from '@/components/ui/label'
 import { Badge } from '@/components/ui/badge'
 import { Progress } from '@/components/ui/progress'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
@@ -19,7 +21,10 @@ export default function EventDetail() {
   const { id } = useParams()
   const [event, setEvent] = useState(null)
   const [orders, setOrders] = useState([])
+  const [discountCodes, setDiscountCodes] = useState([])
   const [loading, setLoading] = useState(true)
+  const [newCode, setNewCode] = useState({ code: '', percentage: '' })
+  const [savingCode, setSavingCode] = useState(false)
 
   useEffect(() => { loadEvent() }, [id])
 
@@ -27,8 +32,10 @@ export default function EventDetail() {
     setLoading(true)
     const { data: ev }   = await supabase.from('events').select(`*, ticket_types(*)`).eq('id', id).single()
     const { data: ords } = await supabase.from('orders').select(`*, ticket_types(name, price, currency)`).eq('event_id', id).order('created_at', { ascending: false })
+    const { data: dcs } = await supabase.from('discount_codes').select('*').eq('event_id', id).order('created_at', { ascending: false })
     setEvent(ev)
     setOrders(ords || [])
+    setDiscountCodes(dcs || [])
     setLoading(false)
   }
 
@@ -43,6 +50,44 @@ export default function EventDetail() {
     const blob = new Blob([csv], { type: 'text/csv' })
     const url = URL.createObjectURL(blob)
     const a = document.createElement('a'); a.href = url; a.download = `asistentes-${event?.name||id}.csv`; a.click()
+  }
+
+  const handleCreateCode = async (e) => {
+    e.preventDefault()
+    if (!newCode.code || !newCode.percentage) return
+    setSavingCode(true)
+    const { data, error } = await supabase.from('discount_codes').insert({
+      event_id: id,
+      code: newCode.code.toUpperCase().trim(),
+      percentage: parseFloat(newCode.percentage)
+    }).select().single()
+
+    if (error) {
+      if (error.code === '23505') toast.error('Ese código ya existe')
+      else toast.error('Error al crear el código')
+    } else {
+      toast.success('Código creado')
+      setDiscountCodes([data, ...discountCodes])
+      setNewCode({ code: '', percentage: '' })
+    }
+    setSavingCode(false)
+  }
+
+  const toggleCodeStatus = async (codeId, currentStatus) => {
+    const { error } = await supabase.from('discount_codes').update({ active: !currentStatus }).eq('id', codeId)
+    if (!error) {
+      setDiscountCodes(dcs => dcs.map(dc => dc.id === codeId ? { ...dc, active: !currentStatus } : dc))
+      toast.success(currentStatus ? 'Código desactivado' : 'Código activado')
+    }
+  }
+
+  const deleteCode = async (codeId) => {
+    if (!confirm('¿Eliminar este código de descuento?')) return
+    const { error } = await supabase.from('discount_codes').delete().eq('id', codeId)
+    if (!error) {
+      setDiscountCodes(dcs => dcs.filter(dc => dc.id !== codeId))
+      toast.success('Código eliminado')
+    }
   }
 
   if (loading) return (
@@ -137,6 +182,7 @@ export default function EventDetail() {
       <Tabs defaultValue="orders">
         <TabsList>
           <TabsTrigger value="orders">Órdenes ({orders.length})</TabsTrigger>
+          <TabsTrigger value="discounts">Descuentos</TabsTrigger>
           <TabsTrigger value="stats">Estadísticas</TabsTrigger>
         </TabsList>
 
@@ -189,6 +235,76 @@ export default function EventDetail() {
               )}
             </CardContent>
           </Card>
+        </TabsContent>
+
+        <TabsContent value="discounts">
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+            <Card className="md:col-span-1 h-fit">
+              <CardHeader>
+                <CardTitle className="text-base">Nuevo Código</CardTitle>
+              </CardHeader>
+              <CardContent>
+                <form onSubmit={handleCreateCode} className="space-y-4">
+                  <div className="space-y-2">
+                    <Label>Código (Ej. VIP20)</Label>
+                    <Input placeholder="VERANO25" value={newCode.code} onChange={e => setNewCode(c => ({...c, code: e.target.value.toUpperCase()}))} required />
+                  </div>
+                  <div className="space-y-2">
+                    <Label>Porcentaje de descuento (%)</Label>
+                    <Input type="number" min="1" max="100" placeholder="15" value={newCode.percentage} onChange={e => setNewCode(c => ({...c, percentage: e.target.value}))} required />
+                  </div>
+                  <Button type="submit" className="w-full" disabled={savingCode}>
+                    <Plus className="h-4 w-4 mr-2" /> Crear Código
+                  </Button>
+                </form>
+              </CardContent>
+            </Card>
+
+            <Card className="md:col-span-2">
+              <CardHeader>
+                <CardTitle className="text-base">Códigos Activos ({discountCodes.length})</CardTitle>
+              </CardHeader>
+              <CardContent>
+                {discountCodes.length === 0 ? (
+                  <div className="py-8 text-center text-muted-foreground text-sm">No has creado códigos de descuento</div>
+                ) : (
+                  <Table>
+                    <TableHeader>
+                      <TableRow>
+                        <TableHead>Código</TableHead>
+                        <TableHead>Descuento</TableHead>
+                        <TableHead>Estado</TableHead>
+                        <TableHead className="text-right">Acciones</TableHead>
+                      </TableRow>
+                    </TableHeader>
+                    <TableBody>
+                      {discountCodes.map(dc => (
+                        <TableRow key={dc.id}>
+                          <TableCell className="font-mono font-bold">{dc.code}</TableCell>
+                          <TableCell className="text-green-500 font-medium">-{dc.percentage}%</TableCell>
+                          <TableCell>
+                            <Button 
+                              variant={dc.active ? "default" : "secondary"} 
+                              size="sm" 
+                              className="h-6 text-xs px-2"
+                              onClick={() => toggleCodeStatus(dc.id, dc.active)}
+                            >
+                              {dc.active ? 'Activo' : 'Inactivo'}
+                            </Button>
+                          </TableCell>
+                          <TableCell className="text-right">
+                            <Button variant="ghost" size="icon" className="h-8 w-8 text-destructive hover:bg-destructive/10" onClick={() => deleteCode(dc.id)}>
+                              <Trash2 className="h-4 w-4" />
+                            </Button>
+                          </TableCell>
+                        </TableRow>
+                      ))}
+                    </TableBody>
+                  </Table>
+                )}
+              </CardContent>
+            </Card>
+          </div>
         </TabsContent>
 
         <TabsContent value="stats">
