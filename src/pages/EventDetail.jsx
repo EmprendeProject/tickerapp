@@ -16,6 +16,7 @@ import { format } from 'date-fns'
 import { es } from 'date-fns/locale'
 import toast from 'react-hot-toast'
 import { PieChart, Pie, Cell, ResponsiveContainer, Tooltip, Legend } from 'recharts'
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 
 export default function EventDetail() {
   const { id } = useParams()
@@ -25,6 +26,8 @@ export default function EventDetail() {
   const [loading, setLoading] = useState(true)
   const [newCode, setNewCode] = useState({ code: '', percentage: '' })
   const [savingCode, setSavingCode] = useState(false)
+  const [selectedTicketTypeId, setSelectedTicketTypeId] = useState('all')
+  const [searchQuery, setSearchQuery] = useState('')
 
   useEffect(() => { loadEvent() }, [id])
 
@@ -41,10 +44,19 @@ export default function EventDetail() {
 
   const copyLink = () => { navigator.clipboard.writeText(`${window.location.origin}/evento/${id}/comprar`); toast.success('¡Link copiado!') }
 
+  const filteredOrders = orders.filter(order => {
+    const matchesTicketType = selectedTicketTypeId === 'all' || order.ticket_type_id === selectedTicketTypeId
+    const matchesSearch = !searchQuery.trim() || 
+      order.buyer_name?.toLowerCase().includes(searchQuery.toLowerCase()) ||
+      order.buyer_email?.toLowerCase().includes(searchQuery.toLowerCase()) ||
+      order.qr_code?.toLowerCase().includes(searchQuery.toLowerCase())
+    return matchesTicketType && matchesSearch
+  })
+
   const exportCSV = () => {
     const rows = [
       ['Nombre','Email','Teléfono','Ticket','Monto','Estado','Fecha','QR Token'],
-      ...orders.map(o => [o.buyer_name,o.buyer_email,o.buyer_phone||'',o.ticket_types?.name||'',o.total_amount||'',o.status,format(new Date(o.created_at),'dd/MM/yyyy HH:mm'),o.qr_code||''])
+      ...filteredOrders.map(o => [o.buyer_name,o.buyer_email,o.buyer_phone||'',o.ticket_types?.name||'',o.total_amount||'',o.status,format(new Date(o.created_at),'dd/MM/yyyy HH:mm'),o.qr_code||''])
     ]
     const csv = rows.map(r => r.join(',')).join('\n')
     const blob = new Blob([csv], { type: 'text/csv' })
@@ -188,9 +200,39 @@ export default function EventDetail() {
 
         <TabsContent value="orders">
           <Card>
-            <CardHeader className="flex flex-row items-center justify-between">
+            <CardHeader className="flex flex-col md:flex-row md:items-center justify-between gap-4 pb-4">
               <CardTitle className="text-base">Lista de Órdenes</CardTitle>
-              <Button variant="outline" size="sm" onClick={exportCSV}><Download className="h-3.5 w-3.5" /> Exportar CSV</Button>
+              {orders.length > 0 && (
+                <div className="flex flex-col sm:flex-row gap-3 w-full md:w-auto">
+                  <Input
+                    placeholder="Buscar por comprador, email..."
+                    value={searchQuery}
+                    onChange={e => setSearchQuery(e.target.value)}
+                    className="h-9 w-full sm:w-64"
+                  />
+                  <Select value={selectedTicketTypeId} onValueChange={setSelectedTicketTypeId}>
+                    <SelectTrigger className="h-9 w-full sm:w-48">
+                      <SelectValue placeholder="Todos los tickets" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="all">Todos los tickets</SelectItem>
+                      {event?.ticket_types?.map(tt => (
+                        <SelectItem key={tt.id} value={tt.id}>
+                          {tt.name}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                  <Button variant="outline" size="sm" onClick={exportCSV} className="h-9 shrink-0">
+                    <Download className="h-3.5 w-3.5 mr-1" /> Exportar CSV
+                  </Button>
+                </div>
+              )}
+              {orders.length === 0 && (
+                <Button variant="outline" size="sm" onClick={exportCSV} disabled>
+                  <Download className="h-3.5 w-3.5 mr-1" /> Exportar CSV
+                </Button>
+              )}
             </CardHeader>
             <CardContent>
               {orders.length === 0 ? (
@@ -199,39 +241,48 @@ export default function EventDetail() {
                   <p className="text-sm text-muted-foreground">Comparte el link de venta para recibir tu primera compra</p>
                 </div>
               ) : (
-                <div className="overflow-x-auto">
-                  <Table>
-                  <TableHeader>
-                    <TableRow>
-                      <TableHead>Comprador</TableHead><TableHead>Ticket</TableHead><TableHead>Monto</TableHead>
-                      <TableHead>Estado</TableHead><TableHead>Fecha</TableHead><TableHead>QR</TableHead>
-                    </TableRow>
-                  </TableHeader>
-                  <TableBody>
-                    {orders.map(order => (
-                      <TableRow key={order.id}>
-                        <TableCell>
-                          <div className="font-medium text-sm">{order.buyer_name}</div>
-                          <div className="text-xs text-muted-foreground">{order.buyer_email}</div>
-                        </TableCell>
-                        <TableCell className="text-sm">{order.ticket_types?.name}</TableCell>
-                        <TableCell className="font-semibold text-green-500 text-sm">{formatCurrency(order.total_amount)}</TableCell>
-                        <TableCell>
-                          <Badge variant={order.status} className="gap-1">
-                            {statusIcon(order.status)} {getStatusLabel(order.status)}
-                          </Badge>
-                        </TableCell>
-                        <TableCell className="text-xs text-muted-foreground">{format(new Date(order.created_at), 'dd/MM/yy HH:mm')}</TableCell>
-                        <TableCell>
-                          {order.qr_code
-                            ? <code className="text-xs text-muted-foreground font-mono">{order.qr_code.slice(-8)}</code>
-                            : '—'}
-                        </TableCell>
-                      </TableRow>
-                    ))}
-                  </TableBody>
-                </Table>
-                </div>
+                <>
+                  {filteredOrders.length === 0 ? (
+                    <div className="flex flex-col items-center py-12 text-center">
+                      <p className="font-medium">Sin órdenes que coincidan</p>
+                      <p className="text-sm text-muted-foreground">Intenta cambiar los filtros o busca otro término</p>
+                    </div>
+                  ) : (
+                    <div className="overflow-x-auto">
+                      <Table>
+                      <TableHeader>
+                        <TableRow>
+                          <TableHead>Comprador</TableHead><TableHead>Ticket</TableHead><TableHead>Monto</TableHead>
+                          <TableHead>Estado</TableHead><TableHead>Fecha</TableHead><TableHead>QR</TableHead>
+                        </TableRow>
+                      </TableHeader>
+                      <TableBody>
+                        {filteredOrders.map(order => (
+                          <TableRow key={order.id}>
+                            <TableCell>
+                              <div className="font-medium text-sm">{order.buyer_name}</div>
+                              <div className="text-xs text-muted-foreground">{order.buyer_email}</div>
+                            </TableCell>
+                            <TableCell className="text-sm">{order.ticket_types?.name}</TableCell>
+                            <TableCell className="font-semibold text-green-500 text-sm">{formatCurrency(order.total_amount)}</TableCell>
+                            <TableCell>
+                              <Badge variant={order.status} className="gap-1">
+                                {statusIcon(order.status)} {getStatusLabel(order.status)}
+                              </Badge>
+                            </TableCell>
+                            <TableCell className="text-xs text-muted-foreground">{format(new Date(order.created_at), 'dd/MM/yy HH:mm')}</TableCell>
+                            <TableCell>
+                              {order.qr_code
+                                ? <code className="text-xs text-muted-foreground font-mono">{order.qr_code.slice(-8)}</code>
+                                : '—'}
+                            </TableCell>
+                          </TableRow>
+                        ))}
+                      </TableBody>
+                    </Table>
+                    </div>
+                  )}
+                </>
               )}
             </CardContent>
           </Card>
